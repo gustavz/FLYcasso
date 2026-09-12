@@ -1,7 +1,11 @@
 """One offline integration check: preparation, gradients, resume, sampling and HTTP."""
 
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -24,6 +28,40 @@ from train import run, validate_config
 
 
 class PipelineTest(unittest.TestCase):
+    def test_run_scripts(self):
+        # Check orchestration separately from the real training/export integration below.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            launcher = root / "python"
+            launcher.write_text(f"#!{sys.executable}\n" + '''import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+with Path(os.environ["CALL_LOG"]).open("a") as log:
+    log.write(json.dumps(args) + "\\n")
+if args[0] == "-c":
+    if "status.json" in args[1]: sys.exit(int(os.environ["INCOMPLETE"]))
+    print(os.environ["REMAINING"] if "max(0," in args[1] else "checkpoint-hash")
+''')
+            launcher.chmod(0o755)
+            for scenario in ("fresh", "resume", "complete"):
+                folder = root / scenario; folder.mkdir()
+                for name in ("run.sh", "run_motor.sh"):
+                    shutil.copyfile(Path(__file__).resolve().parents[1] / name, folder / name)
+                if scenario != "fresh":
+                    for name in ("image run", "motor run", "motor run-control"):
+                        run = folder / name; run.mkdir(); (run / "last.pt").touch()
+                log = folder / "calls.jsonl"
+                env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], CALL_LOG=str(log),
+                           INCOMPLETE="0" if scenario == "complete" else "1", REMAINING="0" if scenario == "complete" else "25")
+                subprocess.run(["bash", str(folder / "run.sh"), "configs/full.json", "image run"], env=env, check=True)
+                subprocess.run(["bash", str(folder / "run_motor.sh"), "motor run"], env=env, check=True)
+                calls = [json.loads(line) for line in log.read_text().splitlines()]
+                training = [args for args in calls if args[0] in ("train.py", "train_motor.py")]
+                self.assertEqual(len(training), {"fresh": 3, "resume": 2, "complete": 0}[scenario])
+                self.assertTrue(all(("--resume" in args) == (scenario == "resume") for args in training))
+                self.assertEqual(sum(args[0] == "export.py" for args in calls), 2)
+                self.assertFalse(any(args[0] == "app.py" for args in calls))
+
     def test_end_to_end(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -132,9 +170,14 @@ class PipelineTest(unittest.TestCase):
             save_samples(root / "samples", images, frames, dict(info, **metadata))
             self.assertTrue((root / "samples/denoising.gif").is_file())
             export(whole, root / "bundle")
+            export(whole, root / "bundle")  # Restarting the pipeline preserves a verified export.
             portable, schedule, _ = load_checkpoint(root / "bundle/model.pt", device="cpu")
             exported, _, _ = generate(portable, schedule, "cat", 1, 42, 4)
             self.assertEqual(images[0].tobytes(), exported[0].tobytes())
+            export(root / "bundle/model.pt", root / "bundle-copy")
+            (root / "bundle/LICENSE").write_text("corrupt")
+            with self.assertRaises(ValueError):
+                export(whole, root / "bundle")
             result = evaluate(whole, device="cpu", batches=2, batch_size=2)
             self.assertTrue(np.isfinite(result["results"]["intact"]["clean_image_mse"]))
             self.assertNotEqual(result["results"]["intact"]["clean_image_mse"], result["results"]["edges_disabled"]["clean_image_mse"])
@@ -145,7 +188,10 @@ class PipelineTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 run(config_path, root / "must-fail", device_name="cpu")
 
-            server = make_server(model, diffusion, info, port=0, allowed_host="fly.example.ts.net:8443")
+            followed = root / "custom-best.pt"
+            save_torch(followed, dict(first, step=first["step"] + 1))
+            server = make_server(model, diffusion, info, port=0, allowed_host="fly.example.ts.net:8443",
+                                 follow_training=True, checkpoint=followed)
             # Keep the completed first handler alive while the next request starts.
             # Readiness must precede its terminal reply, not depend on thread timing.
             finish_reply = threading.Event()
@@ -184,6 +230,7 @@ class PipelineTest(unittest.TestCase):
                 with urllib.request.urlopen(request) as response:
                     generated = json.load(response)
                     self.assertTrue(generated["images"][0].startswith("data:image/png;base64,"))
+                self.assertEqual(info["training_step"], first["step"] + 1)
                 stream = urllib.request.Request(url + "/api/diffuse", data=body, headers=request.headers)
                 with urllib.request.urlopen(stream) as response:
                     self.assertEqual(response.headers["Content-Type"], "application/x-ndjson")

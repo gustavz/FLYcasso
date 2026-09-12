@@ -4,8 +4,16 @@ cd "$(dirname "$0")"
 config="${1:-configs/full.json}"
 run_dir="${2:-runs/diffusion}"
 python prepare.py --target all
-python train.py --config "$config" --out "$run_dir" --until-convergence
-python sample.py --checkpoint "$run_dir/best.pt" --class all --out "$run_dir/final-samples"
-python evaluate.py --checkpoint "$run_dir/best.pt" --out "$run_dir/evaluation.json"
-python export.py --checkpoint "$run_dir/best.pt" --out "$run_dir/bundle"
-python app.py --checkpoint "$run_dir/bundle/model.pt"
+if ! python -c 'import json,sys; from pathlib import Path; p=Path(sys.argv[1])/"status.json"; sys.exit(not (p.exists() and json.loads(p.read_text())["status"]=="validation_plateau"))' "$run_dir"; then
+  if [[ -f "$run_dir/last.pt" ]]; then
+    python train.py --resume "$run_dir/last.pt" --until-convergence
+  else
+    python train.py --config "$config" --out "$run_dir" --until-convergence
+  fi
+fi
+result="$run_dir/inference/$(python -c 'from common import digest; import sys; print(digest(sys.argv[1])[:16])' "$run_dir/best.pt")"
+if [[ ! -f "$result/samples/metadata.json" ]]; then
+  python sample.py --checkpoint "$run_dir/best.pt" --class all --out "$result/samples"
+fi
+python evaluate.py --checkpoint "$run_dir/best.pt" --out "$result/evaluation.json"
+python export.py --checkpoint "$run_dir/best.pt" --out "$result/bundle"

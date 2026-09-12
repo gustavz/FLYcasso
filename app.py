@@ -29,19 +29,20 @@ def encode_images(images):
     return encoded
 
 
-def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_training=False, motor_checkpoint=None):
+def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_training=False, motor_checkpoint=None, checkpoint=None):
     token = secrets.token_urlsafe(32)
     page = (Path(__file__).parent / "web/studio.html").read_text().replace("__TOKEN__", token).encode()
     # ponytail: one inference at a time; a GPU worker queue only if multi-user serving is needed.
     busy = threading.Lock()
     root = Path(__file__).parent
+    diffusion_path = Path(checkpoint) if checkpoint else root / "runs/diffusion/best.pt"
     motor_path = Path(motor_checkpoint) if motor_checkpoint else root / "runs/motor/best.pt"
     motor_cache = {}
     diffusion_stamp = None
 
     def refresh_diffusion():
         nonlocal model, diffusion, diffusion_stamp
-        path = root / "runs/diffusion/best.pt"
+        path = diffusion_path
         if follow_training and path.exists() and path.stat().st_mtime_ns != diffusion_stamp:
             stamp = path.stat().st_mtime_ns
             state, checksum = load_torch(path)
@@ -277,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument("--motor-checkpoint", help="Use an exported motor checkpoint instead of runs/motor/best.pt")
     args = parser.parse_args()
     model, diffusion, info = load_checkpoint(args.checkpoint, args.graph, args.device, args.raw)
-    server = make_server(model, diffusion, info, args.port, args.allowed_host, args.follow_training, args.motor_checkpoint)
+    server = make_server(model, diffusion, info, args.port, args.allowed_host, args.follow_training, args.motor_checkpoint, args.checkpoint)
     print(f"FLYcasso is ready at http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()

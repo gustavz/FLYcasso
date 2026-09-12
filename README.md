@@ -28,11 +28,13 @@ pip install -r requirements-paint.txt
 ## Train
 
 ```sh
-bash run.sh        # diffusion: download, train, evaluate, export, start app
+bash run.sh        # diffusion: download, train, evaluate, export
 bash run_motor.sh  # category drawing: download, train, evaluate, export
 ```
 
 Training uses the GPU when available. Painting first learns pen control, then stroke generation. Weights are generated locally; no pretrained release is available yet.
+
+Rerun the same command to resume interrupted training. Inference bundles and evaluation results go in each run's `inference/` directory. Stroke generation uses 30,000 steps; this is a training budget, not a convergence guarantee.
 
 ## App
 
@@ -54,5 +56,7 @@ node --test tests/*.cjs
 python -m scripts.benchmark --help
 python -m scripts.benchmark_apple --help
 ```
+
+The Python checks exercise a small synthetic training run, exact resume, export, HTTP inference, pen contact and Apple GPU gradients. They do not train the full fly to convergence. JavaScript checks require Node.js; the app itself has no Node.js dependency.
 
 Model details: [docs/MODEL_CARD.md](docs/MODEL_CARD.md). Code: [MIT](LICENSE). Data and asset credits: [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).

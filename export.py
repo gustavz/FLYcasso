@@ -8,15 +8,23 @@ import argparse
 import shutil
 from pathlib import Path
 
-from common import digest, load_torch, save_torch, write_json
+from common import digest, load_torch, read_json, save_torch, write_json
 
 
 def export(checkpoint, output, graph=None):
     state, checksum = load_torch(checkpoint)
-    graph = Path(graph or state["config"]["graph"])
+    local_graph = Path(checkpoint).parent / "graph.npz"
+    graph = Path(graph) if graph else local_graph if local_graph.exists() else Path(state["config"]["graph"])
     if digest(graph) != state["graph_sha256"]:
         raise ValueError("Graph checksum differs from checkpoint")
     output = Path(output)
+    if (output / "manifest.json").exists():
+        manifest = read_json(output / "manifest.json")
+        if manifest["source_checkpoint_sha256"] == checksum and all(
+                digest(output / name) == expected for name, expected in manifest["files"].items()):
+            print(f"Verified existing inference files at {output}")
+            return
+        raise ValueError("Export differs from this checkpoint or is corrupt; choose a new --out")
     output.mkdir(parents=True, exist_ok=False)
     config = dict(state["config"], graph="graph.npz", dataset="data/processed/" + Path(state["config"]["dataset"]).name)
     motor = state.get("task") == "front_leg_motor_v1"
