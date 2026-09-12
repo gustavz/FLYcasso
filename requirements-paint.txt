@@ -1,0 +1,4 @@
+# Optional front-leg task. Python 3.12–3.13; keep base training dependencies pinned.
+-r requirements.txt
+flygym==2.1.0
+mujoco==3.9.0

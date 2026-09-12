@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="flycasso-token" content="__TOKEN__">
+<title>FLYcasso</title>
+<style>
+  :root { color-scheme:light; --paper:#fbefe7; --surface:#fff9f3; --ink:#15120f; --muted:#62544b; --line:#c7afa0; --blue:#355889; --clay:#b22319; --yellow:#ffbf28; --paint:#9cafdf; --accent:var(--blue); font-family:system-ui,sans-serif; color:var(--ink); background:var(--paper); }
+  * { box-sizing:border-box; } html { height:100%; overflow:hidden; } body { margin:0; height:100dvh; overflow:hidden; display:flex; flex-direction:column; } button,input,select { font:inherit; } a { color:var(--accent); text-underline-offset:3px; }
+  header { width:calc(100% - 64px); flex:none; max-width:1376px; margin:0 auto; padding:12px 0 0; display:grid; grid-template-columns:auto minmax(0,1fr) 44px; align-items:end; gap:28px; border-bottom:3px solid var(--ink); }
+  .brand { display:flex; align-items:center; gap:12px; color:var(--ink); text-decoration:none; padding-bottom:10px; }
+  .brand > img:first-child { width:108px; height:72px; object-fit:contain; }
+  .wordmark { width:210px; height:70px; object-fit:contain; }
+  #sound-toggle { display:grid; place-items:center; width:44px; height:44px; padding:10px; margin-bottom:12px; background:transparent; border-color:transparent; }
+  #sound-toggle svg { width:24px; height:24px; }
+  #sound-toggle[aria-pressed=true] .sound-muted,#sound-toggle[aria-pressed=false] .sound-waves { display:none; }
+  main { width:100%; max-width:1440px; margin:0 auto; padding:16px 32px; flex:1; min-height:0; overflow:hidden; }
+  main:has(#training-panel:not([hidden])) { overflow-y:auto; }
+  main > section:not(#training-panel) { height:100%; display:flex; flex-direction:column; min-height:0; }
+  main:not(:has(#training-panel:not([hidden]))) footer { display:none; }
+  h2,h3 { font-family:'Arial Narrow',Arial,sans-serif; font-weight:800; }
+
+  h2 { font-size:25px; margin:0 0 16px; } h3 { font-size:20px; margin:0 0 16px; }
+  .tabs { display:flex; justify-content:center; gap:6px; overflow-x:auto; }
+  .tabs button { flex-shrink:0; border:2px solid transparent; border-bottom:0; background:none; padding:18px 16px; color:var(--ink); font-size:14px; font-weight:700; }
+  .tabs button[aria-selected=true] { border-color:var(--ink); color:var(--ink); background:var(--yellow); } .tabs button:hover:not(:disabled) { border-color:var(--ink); background:var(--yellow); }
+  #motor-panel,.motor-model { --accent:var(--clay); --paint:var(--clay); }
+  .studio { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:24px; flex:1; min-height:0; align-items:stretch; }
+  .studio>section { min-width:0; min-height:0; display:flex; flex-direction:column; } form { min-height:0; display:flex; flex-direction:column; padding:4px 0 4px 24px; border:0; border-left:2px solid var(--ink); background:transparent; }
+  label { display:block; font-size:12px; font-weight:600; margin:0 0 9px; }
+  input,select { width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid var(--ink); border-radius:0; background:var(--surface); color:inherit; font-size:14px; }
+  .field { margin-bottom:12px; flex:none; } .hint { font-size:12px; line-height:1.6; color:var(--muted); margin:10px 0 0; }
+  .seed { display:flex; gap:8px; } .seed button { flex:0 0 44px; padding:0; font-size:20px; }
+  button { cursor:pointer; min-height:44px; padding:10px 14px; border:1px solid var(--ink); border-radius:0; background:var(--surface); color:inherit; font-size:13px; transition:background .15s,border-color .15s; }
+  button:hover:not(:disabled) { background:var(--yellow); border-color:var(--ink); } button:disabled { cursor:default; opacity:.55; }
+  :is(input,select,button,a,summary):focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+  .primary { width:100%; border:2px solid var(--ink); background:var(--paint); color:var(--ink); padding:15px 10px; font-size:16px; font-weight:800; }
+  .primary:hover:not(:disabled) { background:var(--yellow); border-color:var(--ink); }
+  #start-painting { background:var(--clay); color:var(--surface); }
+  #start-painting:hover:not(:disabled) { filter:brightness(.9); }
+  .secondary { width:100%; margin-top:10px; background:transparent; }
+  form details { flex:none; border-block:1px solid var(--line); padding:8px 0; margin:0 0 12px; } details { margin:18px 0; }
+  summary { cursor:pointer; font-size:13px; line-height:1.7; } details[open] summary { margin-bottom:10px; } form details .field:last-child { margin-bottom:0; }
+  .stage { flex:1; min-height:0; display:flex; flex-direction:column; border:2px solid var(--ink); overflow:hidden; background:#eee8e2; }
+  .stage:fullscreen,.stage.expanded { display:flex; flex-direction:column; border:0; }
+  .stage:fullscreen .canvas,.stage:fullscreen #fly-view,.stage.expanded .canvas,.stage.expanded #fly-view { flex:1; height:auto; }
+  .stage.expanded { position:fixed; inset:0; z-index:10; }
+  .viewbar { flex:none; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; padding:6px 14px; border-bottom:1px solid var(--line); background:var(--surface); font-size:12px; }
+  .viewbar strong { font-weight:500; } .viewtools { display:flex; gap:2px; } .viewtools button { font-size:11px; padding:8px; border-color:transparent; background:transparent; }
+  .viewtools button[aria-pressed=true] { color:var(--ink); background:var(--yellow); }
+  .canvas { flex:1; min-height:0; padding:24px; display:grid; place-items:center; overflow:hidden; }
+  #canvas { position:relative; padding:0; } #brain-view { position:absolute; inset:0; } #brain-view canvas,#fly-view canvas { display:block; width:100%; height:100%; touch-action:none; }
+  #empty { position:relative; pointer-events:none; } #canvas.brain-ready #empty { display:none; } #brain-hint { display:none; } #canvas.brain-ready #brain-hint { display:block; }
+  .empty { text-align:center; max-width:300px; } .empty h2 { font-size:29px; } .empty p { color:var(--muted); line-height:1.6; font-size:14px; }
+  .results { display:flex; flex-direction:column; flex:1; min-height:0; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+  .results h3 { flex:none; font:600 12px/1.4 system-ui,sans-serif; margin:0 0 8px; }
+  #gallery { flex:1; min-height:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:minmax(0,1fr); gap:8px; }
+  #gallery.single { grid-template-columns:1fr; }
+  figure { margin:0; min-height:0; display:flex; flex-direction:column; }
+  .image-frame { flex:1; min-height:0; position:relative; padding:0; border:0; background:var(--surface); }
+  #gallery:not(.single) .image-frame[aria-pressed=true] { outline:2px solid var(--accent); outline-offset:-2px; }
+  .image-frame:disabled { opacity:1; }
+  .image-frame img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; image-rendering:pixelated; }
+  figcaption { flex:none; display:flex; justify-content:space-between; gap:8px; font-size:11px; margin-top:4px; }
+  .status { flex:none; color:var(--muted); font-size:12px; line-height:1.6; min-height:0; margin:8px 0 0; } .status:empty { display:none; } .status.error { color:var(--clay); }
+  .progress { flex:none; display:block; width:100%; height:3px; border:0; border-radius:0; accent-color:var(--accent); } progress::-webkit-progress-bar { background:var(--line); } progress::-webkit-progress-value { background:var(--accent); }
+  #fly-view { width:100%; flex:1; min-height:0; position:relative; overflow:hidden; }
+  .view-hint { position:absolute; left:14px; bottom:12px; color:var(--muted); font-size:10px; pointer-events:none; background:#fff9f3e8; padding:6px 9px; }
+  .comparison { flex:1; min-height:0; display:flex; margin:0; }
+  .comparison figure { width:100%; }
+  .comparison canvas { width:100%; height:100%; min-height:0; object-fit:contain; display:block; }
+  form > button,.results > button { flex:none; }
+  .training-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:32px; }
+  .model-column { display:grid; grid-template-rows:subgrid; grid-row:span 7; min-width:0; border-top:3px solid var(--ink); }
+  .model-section { min-width:0; padding:24px 0; border-bottom:1px solid var(--line); }
+  .model-section h2 { color:var(--ink); margin-bottom:8px; } .model-section h3 { font-size:20px; }
+  .model-section p,.model-notes p { font-size:13px; line-height:1.7; color:var(--muted); margin:10px 0 0; }
+  .training-state { display:block; font:12px/1.6 system-ui,sans-serif; color:var(--accent); }
+  .preview-frame { position:relative; width:100%; aspect-ratio:6/5; display:grid; place-items:center; background:var(--surface); border:1px solid var(--line); color:var(--muted); font-size:12px; }
+  .sample-batch { width:100%; aspect-ratio:6/5; object-fit:contain; background:#fff; position:absolute; inset:0; }
+  #diffusion-preview { image-rendering:pixelated; } .model-section canvas { width:100%; height:200px; display:block; }
+  .chart-key { display:flex; gap:20px; font-size:11px; color:var(--muted); margin:10px 0; } .chart-key span::before { content:''; display:inline-block; width:16px; border-top:2px solid var(--blue); vertical-align:middle; margin-right:6px; } .chart-key span:last-child::before { width:6px; height:6px; border:0; border-radius:50%; background:var(--clay); }
+  .diagram-scroll { overflow-x:auto; }
+  .model-diagram { display:block; width:100%; min-width:520px; height:auto; color:var(--ink); }
+  .model-diagram text { fill:var(--ink); font:14px system-ui,sans-serif; }
+  .model-diagram .node-title { font-size:15px; font-weight:700; }
+  .model-diagram .node rect { fill:var(--surface); stroke:var(--ink); stroke-width:1.5; }
+  .model-diagram .circuit rect { fill:#dce2f2; } .model-diagram .sample rect { fill:#fce6b4; }
+  .model-diagram .edge { fill:none; stroke:var(--ink); stroke-width:1.5; } .model-diagram .skip { stroke-dasharray:5 4; }
+  .model-diagram .edge-label { font-size:12px; }
+  dl { font-size:13px; line-height:1.7; margin:0; display:grid; grid-template-columns:100px minmax(0,1fr); gap:12px; } dt { font-weight:600; } dd { margin:0; color:var(--muted); }
+  .model-notes { border-block:1px solid var(--line); margin:32px 0; padding:22px 0; } .model-notes h3 { font-size:18px; } .model-notes p { max-width:900px; }
+  footer { margin-top:32px; padding:20px 0; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+  [hidden] { display:none!important; }
+  @media(max-width:1440px) { header { margin-inline:32px; } }
+  @media(max-width:1100px) { header { grid-template-columns:1fr 44px; gap:12px; } .tabs { grid-column:1/-1; grid-row:2; justify-content:flex-start; } #sound-toggle { grid-column:2; grid-row:1; align-self:center; } }
+  @media(max-width:900px) { .studio { grid-template-columns:minmax(0,1fr) 230px; gap:18px; } form { padding-left:18px; } }
+  @media(max-width:700px) {
+    header { width:calc(100% - 36px); margin-inline:18px; padding:16px 0 0; gap:8px; } .brand { gap:10px; padding:0; } .brand > img:first-child { width:72px; height:50px; } .wordmark { width:clamp(128px,42vw,170px); height:auto; }
+    main { padding:12px 18px; } .tabs { gap:0; } .tabs button { font-size:12px; padding:14px 10px; }
+
+    .studio { display:flex; flex-direction:column; gap:12px; } .studio>section { flex:1; } .studio>form { flex:none; order:-1; display:grid; grid-template-columns:1fr 1fr; gap:0 16px; } .studio>form > * { grid-column:1; } .studio>form > .results { grid-column:2; grid-row:1 / span 6; height:clamp(100px,25dvh,200px); margin:0; padding:0; border:0; }
+    form { padding:0; border:0; } form .field { margin-bottom:8px; } form details { margin-bottom:8px; }
+ .viewbar { padding:6px 8px; } .viewtools button { padding:8px 6px; }
+    .training-grid { display:block; } .model-column { display:block; margin-bottom:32px; } .model-section { padding:22px 0; }
+    .model-notes { margin-top:12px; } dl { grid-template-columns:85px minmax(0,1fr); }
+  }
+  @media(prefers-reduced-motion:reduce) { button { transition:none; } }
+</style>
+<header><a class="brand" href="#diffusion" aria-label="FLYcasso home"><img src="/assets/flycasso-flies.png" alt="Two cubist flies: a painter with beret and pencil, and a fly wearing an electrode cap" width="144" height="96"><img class="wordmark" src="/assets/flycasso-wordmark.png" alt="FLYcasso" width="240" height="80"></a>  <div class="tabs" role="tablist" aria-label="Fly studio">
+    <button id="diffusion-tab" role="tab" aria-selected="true" aria-controls="diffusion-panel">Brain Diffusion</button>
+    <button id="motor-tab" role="tab" aria-selected="false" aria-controls="motor-panel" tabindex="-1">Leg Painting</button>
+    <button id="training-tab" role="tab" aria-selected="false" aria-controls="training-panel" tabindex="-1">Models &amp; Training</button>
+  </div><button id="sound-toggle" type="button" aria-label="Sound" aria-pressed="true" title="Mute sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 6 8H2v8h4l5 4Z"/><path class="sound-waves" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="sound-muted" d="m16 9 6 6m0-6-6 6"/></svg></button></header>
+<main>
+
+  <section id="diffusion-panel" role="tabpanel" aria-labelledby="diffusion-tab">
+
+    <div class="studio">
+      <section aria-label="Live image generation">
+        <div class="stage" id="diffusion-stage">
+          <div class="viewbar"><strong id="diffusion-state">Ready</strong><div class="viewtools"><button type="button" id="brain-reset">Reset view</button><button type="button" data-expand="diffusion-stage" aria-label="Expand image viewer">Expand</button></div></div>
+          <div class="canvas" id="canvas"><div id="brain-view" role="img" aria-label="Illustrated fly wearing an electrode cap connected to its generated image canvas"></div><div class="empty" id="empty"><h2>Loading scene…</h2></div><span class="view-hint" id="brain-hint">Drag to orbit · Pinch to zoom · Cap and waves are illustrative</span></div>
+          <progress class="progress" id="diffusion-progress" value="0" max="1" aria-label="Denoising progress"></progress>
+        </div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+      <form id="controls">
+        <div class="field"><label for="category">Category</label><select id="category" disabled></select></div>
+        <details><summary>Settings</summary>
+        <div class="field"><label for="count">Images</label><select id="count"><option value="1">1 image</option><option value="4" selected>4 images</option></select></div>
+          <div class="field"><label for="seed">Seed</label><div class="seed"><input id="seed" type="number" min="0" max="4294967295" step="1" value="42" required><button type="button" id="shuffle" aria-label="Randomize seed">↻</button></div></div>
+          <div class="field"><label for="steps">Denoising steps</label><input id="steps" type="number" min="2" max="1000" step="1" value="50" required></div>
+        </details>
+        <button id="paint" class="primary" type="submit" disabled>Loading model…</button>
+        <button id="stop-diffusion" class="secondary" type="button" hidden>Stop</button>
+        <section id="image-results" class="results" aria-labelledby="image-results-title"><h3 id="image-results-title">Preview</h3><div id="gallery" class="single"><figure><button type="button" class="image-frame" disabled aria-label="Image preview"><img hidden alt="Image preview"></button></figure></div><button id="save-image" type="button" class="secondary" disabled>Save image</button></section>
+      </form>
+    </div>
+  </section>
+  <section id="motor-panel" role="tabpanel" aria-labelledby="motor-tab" hidden>
+
+    <div class="studio">
+      <section aria-label="Live three-dimensional painting simulation">
+        <div class="stage" id="motor-stage">
+          <div class="viewbar"><strong id="motor-state">Initializing simulation…</strong><div class="viewtools" role="group" aria-label="Camera controls"><button type="button" data-camera="orbit" aria-pressed="true">Orbit</button><button type="button" data-camera="paper" aria-pressed="false">Overhead</button><button type="button" data-camera="side" aria-pressed="false">Side</button><button type="button" data-expand="motor-stage" aria-label="Expand fly viewer">Expand</button></div></div>
+          <div id="fly-view"><span class="view-hint">Drag to orbit · Pinch or scroll to zoom</span></div>
+          <progress class="progress" id="motor-progress" value="0" max="1" aria-label="Painting progress"></progress>
+        </div>
+        <p id="motor-status" class="status" role="status" aria-live="polite">Loading body…</p>
+      </section>
+      <form id="motor-controls">
+        <div class="field"><label for="drawing">Category</label><select id="drawing" disabled></select></div>
+        <details><summary>Settings</summary>
+          <div class="field"><label for="motor-seed">Seed</label><div class="seed"><input id="motor-seed" type="number" min="0" max="4294967295" step="1" value="42" required><button type="button" id="motor-shuffle" aria-label="Randomize drawing seed">↻</button></div></div>
+        </details>
+        <button id="start-painting" class="primary" disabled>Loading model…</button>
+        <button id="stop-painting" type="button" class="secondary" hidden>Stop</button>
+        <section id="drawing-results" class="results" aria-labelledby="drawing-results-title"><h3 id="drawing-results-title">Preview</h3><div class="comparison"><figure><canvas id="painting-preview" width="1024" height="1024" role="img" aria-label="Actual marks painted by the fly"></canvas></figure></div><button id="save-painting" type="button" class="secondary" disabled>Save image</button></section>
+      </form>
+    </div>
+  </section>
+  <section id="training-panel" role="tabpanel" aria-labelledby="training-tab" hidden>
+
+    <div class="training-grid">
+      <article class="model-column diffusion-model" aria-labelledby="image-model-title">
+        <section class="model-section" data-row="status">
+          <h2 id="image-model-title">Image diffusion</h2><span id="diffusion-training-state" class="training-state">Loading…</span>
+          <p id="diffusion-training-detail">Loading metrics…</p>
+        </section>
+        <section class="model-section" data-row="samples">
+          <h3>Samples</h3><div class="preview-frame"><span>No sample checkpoint</span><img id="diffusion-preview" class="sample-batch" hidden alt="Fixed-seed samples from the latest image checkpoint"></div>
+          <p>30 samples · 10 classes · seed 2026</p>
+        </section>
+        <section class="model-section" data-row="loss">
+          <h3>Loss</h3><canvas id="diffusion-curve" aria-label="Diffusion training and validation loss curve" role="img"></canvas>
+          <div class="chart-key"><span>Training</span><span>Validation</span></div>
+          <p>Image MSE · validation: EMA weights</p>
+        </section>
+        <section class="model-section architecture" data-row="architecture" id="diffusion-architecture" aria-labelledby="diffusion-architecture-title">
+          <h3 id="diffusion-architecture-title">Architecture</h3>
+          <div class="diagram-scroll" tabindex="0" role="region" aria-label="Diffusion architecture diagram"><svg class="model-diagram" viewBox="0 0 600 530" role="img" aria-labelledby="diffusion-diagram-title diffusion-diagram-desc">
+            <title id="diffusion-diagram-title">Fly-conditioned image U-Net and DDIM sampler</title>
+            <desc id="diffusion-diagram-desc">Noisy RGB image enters the encoder. Image features, category and timestep enter the full fly circuit. Its readout conditions the decoder, alongside encoder skip connections. The clean-image estimate enters DDIM, which feeds the next noisy state back into the encoder or returns the final image.</desc>
+            <defs>
+            <marker id="diffusion-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 7 3.5 0 7Z" fill="currentColor"/>
+            </marker>
+            </defs>
+            <g class="node">
+            <rect x="20" y="20" width="140" height="62"/>
+            <text x="90.0" y="44" text-anchor="middle" class="node-title">Noisy image</text>
+            <text x="90.0" y="66" text-anchor="middle">3 × 32 × 32</text>
+            </g>
+            <g class="node">
+            <rect x="220" y="20" width="180" height="62"/>
+            <text x="310.0" y="44" text-anchor="middle" class="node-title">Conditioning</text>
+            <text x="310.0" y="66" text-anchor="middle">Category + timestep</text>
+            </g>
+            <g class="node">
+            <rect x="20" y="150" width="140" height="100"/>
+            <text x="90.0" y="174" text-anchor="middle" class="node-title">2D encoder</text>
+            <text x="90.0" y="196" text-anchor="middle">32² → 8²</text>
+            <text x="90.0" y="215" text-anchor="middle">32 → 128 ch.</text>
+            </g>
+            <g class="node circuit">
+            <rect x="220" y="150" width="180" height="100"/>
+            <text x="310.0" y="174" text-anchor="middle" class="node-title">Full fly circuit</text>
+            <text x="310.0" y="196" text-anchor="middle">166,700 neurons</text>
+            <text x="310.0" y="215" text-anchor="middle">128 → N → 128</text>
+            </g>
+            <g class="node">
+            <rect x="460" y="150" width="120" height="100"/>
+            <text x="520.0" y="174" text-anchor="middle" class="node-title">Decoder</text>
+            <text x="520.0" y="196" text-anchor="middle">8² → 32²</text>
+            <text x="520.0" y="215" text-anchor="middle">ResNet · attn.</text>
+            </g>
+            <path class="edge" d="M90 82V150" marker-end="url(#diffusion-arrow)"/>
+            <path class="edge" d="M310 82V150" marker-end="url(#diffusion-arrow)"/>
+            <path class="edge" d="M160 202H220" marker-end="url(#diffusion-arrow)"/>
+            <path class="edge" d="M400 202H460" marker-end="url(#diffusion-arrow)"/>
+            <text class="edge-label" x="406" y="191">Context</text>
+            <path class="edge skip" d="M155 165H180V110H520V150" marker-end="url(#diffusion-arrow)"/>
+            <text class="edge-label" x="376" y="101">Encoder skips</text>
+            <path class="edge" d="M352 155V130H422V231H400" marker-end="url(#diffusion-arrow)"/>
+            <text class="edge-label" x="426" y="148">×3</text>
+            <g class="node">
+            <rect x="440" y="295" width="140" height="65"/>
+            <text x="510.0" y="319" text-anchor="middle" class="node-title">x₀ estimate</text>
+            <text x="510.0" y="341" text-anchor="middle">3 × 32 × 32</text>
+            </g>
+            <path class="edge" d="M520 250V295" marker-end="url(#diffusion-arrow)"/>
+            <g class="node sample">
+            <rect x="220" y="390" width="180" height="75"/>
+            <text x="310.0" y="414" text-anchor="middle" class="node-title">DDIM</text>
+            <text x="310.0" y="436" text-anchor="middle">50 steps · CFG 2</text>
+            </g>
+            <path class="edge" d="M510 360V375H310V390" marker-end="url(#diffusion-arrow)"/>
+            <g class="node">
+            <rect x="460" y="397" width="120" height="65"/>
+            <text x="520.0" y="421" text-anchor="middle" class="node-title">RGB image</text>
+            <text x="520.0" y="443" text-anchor="middle">32 × 32</text>
+            </g>
+            <path class="edge" d="M400 428H460" marker-end="url(#diffusion-arrow)"/>
+            <text class="edge-label" x="409" y="418">t = 0</text>
+            <path class="edge skip" d="M220 428H180V50H160" marker-end="url(#diffusion-arrow)"/>
+            <text class="edge-label" x="186" y="350">Next xₜ</text>
+            <text x="20" y="510" class="edge-label">Residual blocks · 8 × 8 spatial attention · encoder skips</text>
+            </svg></div>
+        </section>
+        <section class="model-section" data-row="data">
+          <h3>Training data</h3><dl><dt>Source</dt><dd>CIFAR-10 · 32 × 32 color images</dd><dt>Categories</dt><dd>10 · airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck</dd><dt>Split</dt><dd>45,000 training · 5,000 validation · 10,000 test</dd><dt>Input</dt><dd>Category + seed</dd></dl>
+        </section>
+        <section class="model-section" data-row="checkpoint">
+          <h3>Checkpoint</h3><p id="model-info">Loading checkpoint…</p><p>AdamW · initial LR 3e−4 · batch 32 · EMA 0.999 · Min-SNR γ = 5</p>
+        </section>
+        <section class="model-section" data-row="execution">
+          <h3>Runtime</h3><p>DDIM image frames · denoising-step cap animation · joint-based grooming animation</p>
+        </section>
+      </article>
+      <article class="model-column motor-model" aria-labelledby="drawing-model-title">
+        <section class="model-section" data-row="status">
+          <h2 id="drawing-model-title">Front-leg painting</h2><span id="motor-training-state" class="training-state">Loading…</span>
+          <p id="motor-training-detail">Loading metrics…</p>
+        </section>
+        <section class="model-section" data-row="samples">
+          <h3>Samples</h3><div class="preview-frame"><span>No sample checkpoint</span><img id="motor-preview" class="sample-batch" hidden alt="Category-generated strokes from the latest painting checkpoint"></div>
+          <p>30 stroke plans · 10 classes · seed 2026</p>
+        </section>
+        <section class="model-section" data-row="loss">
+          <h3>Loss</h3><canvas id="motor-curve" aria-label="Front-leg motor training and validation loss curve" role="img"></canvas>
+          <div class="chart-key"><span>Training</span><span>Validation</span></div>
+          <p>Control phase: joint MSE · stroke phase: coordinate and pen-state MSE</p>
+        </section>
+        <section class="model-section architecture" data-row="architecture" id="motor-architecture" aria-labelledby="motor-architecture-title">
+          <h3 id="motor-architecture-title">Architecture</h3>
+          <div class="diagram-scroll" tabindex="0" role="region" aria-label="Motor architecture diagram"><svg class="model-diagram" viewBox="0 0 600 530" role="img" aria-labelledby="motor-diagram-title motor-diagram-desc">
+            <title id="motor-diagram-title">Stroke diffusion and closed-loop leg control</title>
+            <desc id="motor-diagram-desc">Noisy strokes enter the encoder. Category and timestep enter the full fly circuit, which conditions the decoder; encoder features also skip to the decoder. DDIM produces a path. Observations and path targets feed the learned controller through the same frozen circuit. Joint corrections drive MuJoCo, which returns state observations and records pen contact.</desc>
+            <defs>
+            <marker id="motor-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 7 3.5 0 7Z" fill="currentColor"/>
+            </marker>
+            </defs>
+            <g class="node">
+            <rect x="20" y="20" width="140" height="62"/>
+            <text x="90.0" y="44" text-anchor="middle" class="node-title">Noisy strokes</text>
+            <text x="90.0" y="66" text-anchor="middle">3 × 256</text>
+            </g>
+            <g class="node">
+            <rect x="220" y="20" width="180" height="62"/>
+            <text x="310.0" y="44" text-anchor="middle" class="node-title">Conditioning</text>
+            <text x="310.0" y="66" text-anchor="middle">Category + timestep</text>
+            </g>
+            <g class="node">
+            <rect x="20" y="150" width="140" height="100"/>
+            <text x="90.0" y="174" text-anchor="middle" class="node-title">1D encoder</text>
+            <text x="90.0" y="196" text-anchor="middle">256 → 16</text>
+            <text x="90.0" y="215" text-anchor="middle">32 → 64 ch.</text>
+            </g>
+            <g class="node circuit">
+            <rect x="220" y="150" width="180" height="100"/>
+            <text x="310.0" y="174" text-anchor="middle" class="node-title">Full fly circuit</text>
+            <text x="310.0" y="196" text-anchor="middle">166,700 neurons</text>
+            <text x="310.0" y="215" text-anchor="middle">64 → N → 64</text>
+            </g>
+            <g class="node">
+            <rect x="460" y="150" width="120" height="100"/>
+            <text x="520.0" y="174" text-anchor="middle" class="node-title">Decoder</text>
+            <text x="520.0" y="196" text-anchor="middle">16 → 256</text>
+            <text x="520.0" y="215" text-anchor="middle">GN · SiLU</text>
+            </g>
+            <path class="edge" d="M90 82V150" marker-end="url(#motor-arrow)"/>
+            <path class="edge" d="M310 82V150" marker-end="url(#motor-arrow)"/>
+            <path class="edge" d="M160 202H220" marker-end="url(#motor-arrow)"/>
+            <path class="edge" d="M400 202H460" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="406" y="191">Context</text>
+            <path class="edge skip" d="M155 165H180V110H520V150" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="376" y="101">Encoder skips</text>
+            <path class="edge" d="M352 155V130H422V231H400" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="426" y="148">×3</text>
+            <g class="node sample">
+            <rect x="430" y="295" width="150" height="65"/>
+            <text x="505.0" y="319" text-anchor="middle" class="node-title">DDIM</text>
+            <text x="505.0" y="341" text-anchor="middle">256-point path</text>
+            </g>
+            <path class="edge" d="M520 250V295" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="530" y="280">x₀</text>
+            <path class="edge skip" d="M430 315H195V50H160" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="201" y="285">Denoise loop</text>
+            <g class="node circuit">
+            <rect x="20" y="385" width="210" height="86"/>
+            <text x="125.0" y="409" text-anchor="middle" class="node-title">Leg controller</text>
+            <text x="125.0" y="431" text-anchor="middle">40 → same circuit → 14</text>
+            <text x="125.0" y="450" text-anchor="middle">7 LF joint corrections</text>
+            </g>
+            <g class="node">
+            <rect x="300" y="385" width="150" height="86"/>
+            <text x="375.0" y="409" text-anchor="middle" class="node-title">MuJoCo</text>
+            <text x="375.0" y="431" text-anchor="middle">10 kHz physics</text>
+            <text x="375.0" y="450" text-anchor="middle">100 Hz playback</text>
+            </g>
+            <g class="node">
+            <rect x="490" y="400" width="90" height="60"/>
+            <text x="535.0" y="424" text-anchor="middle" class="node-title">Ink</text>
+            <text x="535.0" y="446" text-anchor="middle">Contact</text>
+            </g>
+            <path class="edge" d="M505 360V373H125V385" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="256" y="365">Path targets</text>
+            <path class="edge" d="M230 418H300" marker-end="url(#motor-arrow)"/>
+            <path class="edge" d="M450 430H490" marker-end="url(#motor-arrow)"/>
+            <path class="edge skip" d="M370 471V510H125V471" marker-end="url(#motor-arrow)"/>
+            <text class="edge-label" x="198" y="504">State feedback</text>
+            </svg></div>
+        </section>
+        <section class="model-section" data-row="data">
+          <h3>Training data</h3><dl><dt>Source</dt><dd>Google Quick, Draw! · vector sketches</dd><dt>Categories</dt><dd>10 · cat, flower, butterfly, fish, bird, tree, house, star, apple, umbrella</dd><dt>Split</dt><dd>100,000 training · 5,000 validation · 5,000 test</dd><dt>Input</dt><dd>Category + seed</dd></dl>
+        </section>
+        <section class="model-section" data-row="checkpoint">
+          <h3>Checkpoint</h3><p id="motor-info">Checkpoint loaded on inference</p><p>Stroke training: AdamW · LR 3e−4 · batch 32 · EMA 0.999 · frozen circuit and controller</p>
+        </section>
+        <section class="model-section" data-row="execution">
+          <h3>Runtime</h3><p id="motor-measurement">No execution measurements</p><p>MuJoCo · NeuroMechFly body · left-front-leg pen · contact-based ink</p>
+        </section>
+      </article>
+    </div>
+    <section class="model-notes" aria-labelledby="connectome-title"><h3 id="connectome-title">Connectome &amp; training</h3>
+      <dl><dt>Graph</dt><dd>MaleCNS · 166,700 neurons · 25,582,938 directed connections</dd><dt>Dynamics</dt><dd>Fixed signed CSR adjacency · tanh rate units · 3 recurrent updates</dd><dt>Diffusion</dt><dd>Cosine schedule · 1,000 noise levels · clean-image prediction · condition dropout 0.1</dd><dt>Stopping</dt><dd>Image model: validation-plateau rule after ≥20,000 steps</dd><dt>Sources</dt><dd><a href="https://neuromechfly.org/">NeuroMechFly</a> · <a href="https://github.com/googlecreativelab/quickdraw-dataset">Quick, Draw!</a></dd></dl>
+      <p><a id="recipe-training" href="#diffusion" hidden>Download recipe</a></p>
+    </section>
+  </section>
+  <footer>FLYcasso</footer>
+</main>
+<script type="importmap">{"imports":{"three":"/assets/three.module.js"}}</script>
+<script src="/sound.js"></script>
+<script type="module" src="/training.js"></script>
+<script>
+  const $=id=>document.getElementById(id);
+  let recipeURL,motorLoaded=false,diffusionAbort=null;
+  const names=['diffusion','motor','training'],tabs=names.map(name=>$(name+'-tab'));
+  function selectTab(index) {
+    tabs.forEach((tab,i)=>{tab.setAttribute('aria-selected',String(i===index));tab.tabIndex=i===index?0:-1;$(tab.getAttribute('aria-controls')).hidden=i!==index;});
+    if(index===1&&!motorLoaded){motorLoaded=true;import('/paint.js').catch(e=>{$('motor-status').textContent='Could not load the 3D view: '+e.message;motorLoaded=false;});}
+    window.dispatchEvent(new Event('resize'));history.replaceState(null,'','#'+names[index]);
+  }
+  tabs.forEach((tab,i)=>{tab.onclick=()=>selectTab(i);tab.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const n=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;selectTab(n);tabs[n].focus();}};});
+  function hashTab(){selectTab(Math.max(0,names.indexOf(location.hash.slice(1))));}
+  window.addEventListener('hashchange',hashTab);hashTab();
+  document.querySelectorAll('[data-expand]').forEach(button=>{
+    const stage=$(button.dataset.expand);
+    button.onclick=async()=>{
+      if(document.fullscreenElement){await document.exitFullscreen();return;}
+      if(stage.requestFullscreen){try{await stage.requestFullscreen();return;}catch{}}
+      stage.classList.toggle('expanded');button.textContent=stage.classList.contains('expanded')?'Close':'Expand';window.dispatchEvent(new Event('resize'));
+    };
+  });
+  document.addEventListener('fullscreenchange',()=>{document.querySelectorAll('[data-expand]').forEach(b=>b.textContent=document.fullscreenElement?.id===b.dataset.expand?'Close':'Expand');window.dispatchEvent(new Event('resize'));});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.expanded').forEach(stage=>stage.classList.remove('expanded'));document.querySelectorAll('[data-expand]').forEach(b=>b.textContent='Expand');window.dispatchEvent(new Event('resize'));}});
+  // Both viewers consume real server events. An interrupted stream never counts as completion.
+  window.readFlyStream=async(response,onPacket)=>{
+    if(!response.ok){
+      const body=await response.text();let message;
+      try{message=JSON.parse(body).error;}catch{}
+      throw Error(typeof message==='string'?message:`Server unavailable (${response.status}). Please try again.`);
+    }
+    const reader=response.body.getReader(),decoder=new TextDecoder();let pending='',completed=false;
+    const accept=line=>{
+      let packet;
+      try{packet=JSON.parse(line);}catch{throw Error('Connection interrupted. Please try again; the same seed repeats the image.');}
+      if(!packet||typeof packet.type!=='string')throw Error('Invalid server response. Please try again.');
+      if(packet.type==='error')throw Error(packet.error);
+      onPacket(packet);if(packet.type==='done')completed=true;
+    };
+    try {
+      while(!completed){
+        const {value,done}=await reader.read();pending+=decoder.decode(value,{stream:!done});
+        const lines=pending.split('\n');pending=lines.pop();
+        for(const line of lines){if(line.trim())accept(line);if(completed)break;}
+        if(done){if(!completed&&pending.trim())accept(pending);break;}
+      }
+      if(!completed)throw Error('Connection interrupted. The run did not finish. Please try again.');
+    } finally {await reader.cancel().catch(()=>{});reader.releaseLock();}
+  };
+  const status=(message,error=false)=>{$('status').textContent=message;$('status').classList.toggle('error',error);};
+  for(const prefix of ['','motor-'])$(prefix+'shuffle').onclick=()=>{$(prefix+'seed').value=crypto.getRandomValues(new Uint32Array(1))[0];};
+  function modelInfo(info){$('model-info').textContent=`${info.neurons.toLocaleString()} neurons · ${info.edges.toLocaleString()} connections · training step ${info.training_step.toLocaleString()} · ${info.device==='mps'?'Apple GPU (Metal)':info.device}`;}
+  fetch('/api/info').then(async r=>{if(!r.ok)throw Error('Could not load the checkpoint.');return r.json();}).then(info=>{
+    for(const name of info.classes)$('category').add(new Option(name[0].toUpperCase()+name.slice(1),name));
+    $('category').value='cat';$('category').disabled=false;$('steps').max=info.diffusion_steps;$('steps').value=Math.min(50,info.diffusion_steps);modelInfo(info);
+    if(info.graph_kind!=='malecns_v1')status('Synthetic test network — software check only.');
+    $('paint').disabled=false;$('paint').textContent='Create images';
+  }).catch(e=>status(e.message,true));
+  import('/brain.js').catch(()=>{$('empty').innerHTML='<h2>3D view unavailable.</h2><p>You can still generate and download images below.</p>';$('brain-reset').disabled=true;});
+  function showImages(images,metadata=null,step=null){
+    if(!metadata){window.flyDiffusionPreview={images,step};window.dispatchEvent(new CustomEvent('diffusion-frame',{detail:window.flyDiffusionPreview}));}
+    const gallery=$('gallery');$('empty').hidden=true;gallery.classList.toggle('single',images.length===1);
+    if(gallery.children.length!==images.length){gallery.replaceChildren();for(let i=0;i<images.length;i++){const figure=document.createElement('figure'),frame=document.createElement('button');frame.type='button';frame.className='image-frame';frame.append(new Image());figure.append(frame);gallery.append(figure);}}
+    images.forEach((src,i)=>{const figure=gallery.children[i],im=figure.querySelector('img');im.src=src;im.hidden=false;im.alt=metadata?`Generated ${metadata.classes[i]}, image ${i+1}`:`Denoising preview ${i+1}`;
+      const frame=im.parentElement;frame.disabled=!metadata;frame.setAttribute('aria-label',`Select image ${i+1}`);frame.setAttribute('aria-pressed',String(i===0));
+      if(metadata)frame.dataset.download=`flycasso-${metadata.classes[i]}-${metadata.seed}-${i+1}.png`;
+      frame.onclick=()=>{for(const button of gallery.querySelectorAll('.image-frame'))button.setAttribute('aria-pressed',String(button===frame));};
+    });
+  }
+  for(const id of ['controls','motor-controls'])$(id).addEventListener('invalid',e=>{const details=e.target.closest('details');if(details)details.open=true;},true);
+  $('save-image').onclick=()=>{
+    const frame=$('gallery').querySelector('[aria-pressed="true"][data-download]');if(!frame)return;
+    const link=document.createElement('a');link.href=frame.querySelector('img').src;link.download=frame.dataset.download;link.click();
+  };
+  $('stop-diffusion').onclick=()=>diffusionAbort?.abort();
+  $('controls').onsubmit=async event=>{
+    event.preventDefault();window.flyDiffusionGenerating=true;window.flyDiffusionPreview=null;window.dispatchEvent(new Event('diffusion-reset'));diffusionAbort=new AbortController();const inputs=[...$('controls').querySelectorAll('input,select,button:not(#stop-diffusion)')];
+    const request={category:$('category').value,count:Number($('count').value),seed:Number($('seed').value),steps:Number($('steps').value)};
+    inputs.forEach(x=>x.disabled=true);$('stop-diffusion').hidden=false;$('canvas').setAttribute('aria-busy','true');$('recipe-training').hidden=true;$('gallery').replaceChildren();$('empty').hidden=false;$('diffusion-progress').value=0;$('diffusion-state').textContent='Starting…';status('Waiting for the first frame…');
+    try {
+      const response=await fetch('/api/diffuse',{method:'POST',signal:diffusionAbort.signal,headers:{'Content-Type':'application/json','X-Flycasso-Token':'__TOKEN__'},body:JSON.stringify(request)});
+      await window.readFlyStream(response,packet=>{
+        if(packet.type==='frame'){showImages(packet.images,null,packet.step);$('diffusion-progress').value=packet.step/packet.total;$('diffusion-state').textContent=`Denoising · ${packet.step} / ${packet.total}`;status(packet.step===0?'Starting from noise.':'Receiving live denoising steps…');}
+        if(packet.type==='done'){
+          showImages(packet.images,packet.metadata);modelInfo(packet.metadata);$('diffusion-state').textContent='Finished';
+          if(recipeURL)URL.revokeObjectURL(recipeURL);recipeURL=URL.createObjectURL(new Blob([JSON.stringify(packet.metadata,null,2)],{type:'application/json'}));
+          for(const id of ['recipe-training']){$(id).href=recipeURL;$(id).download='flycasso-recipe.json';$(id).textContent='Download recipe';$(id).hidden=false;}
+          status(`Painted ${packet.images.length} image${packet.images.length===1?'':'s'} in ${packet.seconds}s. Seed ${packet.metadata.seed}.`);
+        }
+      });
+    }catch(e){$('diffusion-state').textContent=e.name==='AbortError'?'Stopped':'Interrupted';status(e.name==='AbortError'?'Stopped. Showing the last received step.':e.message,e.name!=='AbortError');}
+    finally{window.flyDiffusionGenerating=false;window.dispatchEvent(new Event('diffusion-end'));diffusionAbort=null;inputs.forEach(x=>x.disabled=false);$('save-image').disabled=!$('gallery').querySelector('[data-download]');$('stop-diffusion').hidden=true;$('canvas').removeAttribute('aria-busy');}
+  };
+</script>
+</html>
