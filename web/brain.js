@@ -44,7 +44,7 @@ const port=mesh(new THREE.SphereGeometry(.07,16,12),signal,[-1.17,-.025,1.48],ca
 canvasRig.updateMatrixWorld(true);
 let cable,pulse,birth=-Infinity,travelBirth=-Infinity,version=0,grooming,frontLegs=[],groomClock=0,groomRunning=false;
 let generating=Boolean(window.flyDiffusionGenerating),lastTime=0;
-const waves=[],groomMatrix=new THREE.Matrix4(),groomQuaternion=new THREE.Quaternion(),groomPosition=new THREE.Vector3();
+const waves=[],groomMatrix=new THREE.Matrix4();
 function animateFeet(time){
   if(!grooming)return;
   const delta=Math.min(.05,Math.max(0,(time-lastTime)/1000));lastTime=time;
@@ -57,8 +57,8 @@ function animateFeet(time){
   // Finish the rest-to-rest bout on stop; never blend separate meshes through the body.
   const frame=Math.min(grooming.frames.length-1,Math.round(groomClock/grooming.duration*(grooming.frames.length-1)));
   frontLegs.forEach((leg,i)=>{
-    leg.object.position.copy(grooming.frames[frame][i].position);
-    leg.object.quaternion.copy(grooming.frames[frame][i].rotation);
+    leg.position.copy(grooming.frames[frame][i].position);
+    leg.quaternion.copy(grooming.frames[frame][i].rotation);
   });
 }
 
@@ -79,7 +79,7 @@ window.addEventListener('diffusion-reset',()=>{version++;birth=travelBirth=-Infi
 window.addEventListener('diffusion-end',()=>{generating=false;});
 function resize(){const w=view.clientWidth,h=view.clientHeight;if(!w||!h)return;const aspect=w/h,half=Math.max(4,2.1*aspect);camera.left=-half;camera.right=half;camera.top=half/aspect;camera.bottom=-half/aspect;camera.updateProjectionMatrix();renderer.setSize(w,h,false);}
 new ResizeObserver(resize).observe(view);window.addEventListener('resize',resize);
-renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();$('canvas').classList.remove('brain-ready');$('empty').hidden=false;$('empty').innerHTML='<h2>3D view paused.</h2><p>Your real images are still available below. Reload to restore the fly.</p>';$('image-results').open=true;});
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();$('canvas').classList.remove('brain-ready');$('empty').hidden=false;$('empty').innerHTML='<h2>3D view paused.</h2><p>Your real images are still available below. Reload to restore the fly.</p>';});
 
 async function load(){
   const response=await fetch('/assets/fly-scene.json');if(!response.ok)throw Error('Fly body unavailable');
@@ -106,10 +106,10 @@ async function load(){
   mesh(new THREE.TubeGeometry(cable,64,.027,8,false),dark,[0,0,0]);
   mesh(new THREE.TubeGeometry(cable,64,.012,8,false),signal,[0,-.027,.008]);
   pulse=mesh(new THREE.SphereGeometry(.052,16,12),new THREE.MeshBasicMaterial({color:'#b0fff3'}),origin.toArray());pulse.visible=false;
-  $('canvas').classList.add('brain-ready');$('image-results').open=false;
+  $('canvas').classList.add('brain-ready');
   if(window.flyDiffusionPreview)display(window.flyDiffusionPreview);resize();
   // Baked connected-joint poses are presentation only; neither trained model is changed.
-  try{const r=await fetch('/assets/grooming.json');if(!r.ok)throw Error('Grooming clip unavailable');grooming=await r.json();grooming.frames=grooming.frames.map(frame=>frame.positions.map((p,i)=>{const r=frame.rotations[i];groomMatrix.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1);return {position:new THREE.Vector3().fromArray(p),rotation:new THREE.Quaternion().setFromRotationMatrix(groomMatrix)};}));frontLegs=grooming.names.map(name=>{const object=fly.getObjectByName(name);return {object,restPosition:object.position.clone(),restRotation:object.quaternion.clone()};});}
+  try{const r=await fetch('/assets/grooming.json');if(!r.ok)throw Error('Grooming clip unavailable');grooming=await r.json();grooming.frames=grooming.frames.map(frame=>frame.positions.map((p,i)=>{const r=frame.rotations[i];groomMatrix.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1);return {position:new THREE.Vector3().fromArray(p),rotation:new THREE.Quaternion().setFromRotationMatrix(groomMatrix)};}));frontLegs=grooming.names.map(name=>fly.getObjectByName(name));}
   catch{$('brain-hint').textContent='Foot animation unavailable · Cap and waves are illustrative';}
 }
 renderer.setAnimationLoop(time=>{

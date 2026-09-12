@@ -1,7 +1,7 @@
 // CPU-only scene and event checks; no browser or GPU required. node tests/test_brain.cjs
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 (async()=>{
-  const core=await import('../web/assets/three.core.js');
+  const core=await import('../web/vendor/three.core.js');
   const bodyContext={THREE:core};
   vm.runInNewContext(fs.readFileSync('web/fly-body.js','utf8').replace(/^import .*;$/mg,'').replace('export function','function'),bodyContext);
   const data=JSON.parse(fs.readFileSync('web/assets/fly-scene.json','utf8')),objects=bodyContext.flyObjects(data);

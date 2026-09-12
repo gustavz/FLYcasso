@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from sample import generate, load_checkpoint, to_images
-from common import digest, load_torch, read_json
+from common import load_torch, read_json
 
 
 def encode_images(images):
@@ -48,7 +48,6 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             if state["graph_sha256"] != info["graph_sha256"]:
                 raise ValueError("New image checkpoint uses a different graph")
             if state["config"] != info["config"]:
-                from sample import load_checkpoint
                 model, diffusion, refreshed = load_checkpoint(path, device=str(next(model.parameters()).device))
                 info.clear(); info.update(refreshed)
             else:
@@ -165,8 +164,10 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
                       "/brain.js": (root / "web/brain.js", "text/javascript"),
                       "/fly-body.js": (root / "web/fly-body.js", "text/javascript"),
                       "/training.js": (root / "web/training.js", "text/javascript")}
-            for name in ("three.module.js", "three.core.js", "OrbitControls.js", "fly-scene.json", "grooming.json"):
-                assets["/assets/" + name] = (root / "web/assets" / name, "application/json" if name.endswith("json") else "text/javascript")
+            for name in ("three.module.js", "three.core.js", "OrbitControls.js"):
+                assets["/assets/" + name] = (root / "web/vendor" / name, "text/javascript")
+            for name in ("fly-scene.json", "grooming.json"):
+                assets["/assets/" + name] = (root / "web/assets" / name, "application/json")
             if self.path in assets:
                 path, mime = assets[self.path]
                 if path.exists():

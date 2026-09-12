@@ -1,8 +1,8 @@
 # Quality and performance experiments
 
-Research snapshot: 12 September 2026, code `ec88eeb`. These are proposed experiments, not implemented improvements or promised speedups. Keep the full 166,700-neuron, 25,582,938-edge circuit. Diffusion stays on CIFAR-10; drawing stays on Quick, Draw!.
+Historical research snapshot: 12 September 2026. These are proposed experiments, not implemented improvements or promised speedups. Keep the full 166,700-neuron, 25,582,938-edge circuit. Diffusion stays on CIFAR-10; drawing stays on Quick, Draw!.
 
-## What the current runs show
+## Observed runs at the time
 
 | | CIFAR diffusion | Category drawing |
 |---|---|---|
@@ -12,7 +12,7 @@ Research snapshot: 12 September 2026, code `ec88eeb`. These are proposed experim
 | EMA validation MSE | 0.05564 | 0.05623 |
 | Generated category recognition | Not measured for this run | 12/30, using a classifier with 94.02% held-out accuracy |
 
-Sources: local `runs/{diffusion,motor}/metrics.jsonl`, data manifests and previews. Drawing adapters were initialized from the earlier three-category model; CIFAR training started fresh. Both runs continue. Their MSE values measure different tasks and are not comparable quality scores. Thirty generated drawings are too few for a reliable model ranking.
+Sources: local `runs/{diffusion,motor}/metrics.jsonl`, data manifests and previews. Drawing adapters were initialized from the earlier three-category model; CIFAR training started fresh. Both runs were still training at this snapshot. Their MSE values measure different tasks and are not comparable quality scores. Thirty generated drawings are too few for a reliable model ranking.
 
 The inspected CIFAR preview is blurry, with weak object structure. The drawing preview has fragmented contours and misplaced strokes. Accurate leg control cannot repair a poor generated plan: evaluate the plan and the executed ink separately.
 

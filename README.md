@@ -44,4 +44,15 @@ python app.py --checkpoint runs/diffusion/best.pt --follow-training
 
 Open http://localhost:7860. The app has diffusion, pen painting and training tabs.
 
+## Development
+
+Python entry points stay at the root. `configs/` holds training settings and source pins; `scripts/` holds benchmarks and asset preparation; `web/` contains the app, assets and vendored Three.js; `tests/` contains the checks.
+
+```sh
+python -m unittest discover -s tests
+node --test tests/*.cjs
+python -m scripts.benchmark --help
+python -m scripts.benchmark_apple --help
+```
+
 Model details: [docs/MODEL_CARD.md](docs/MODEL_CARD.md). Code: [MIT](LICENSE). Data and asset credits: [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).

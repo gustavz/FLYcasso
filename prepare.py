@@ -9,7 +9,7 @@ import numpy as np
 from common import checked_download, digest, read_json, write_json
 
 CLASSES = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-SOURCES = read_json(Path(__file__).with_name("sources.json"))
+SOURCES = read_json(Path(__file__).parent / "configs/sources.json")
 
 
 def download(root="data/raw", target="all"):

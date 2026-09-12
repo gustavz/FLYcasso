@@ -17,7 +17,7 @@ from paint import PaintingFly, drawing_targets
 
 
 def split_drawings():
-    specs = read_json(Path(__file__).with_name("stroke-sources.json"))
+    specs = read_json(Path(__file__).parent / "configs/stroke-sources.json")
     rng = np.random.default_rng(1729)
     drawings = {split: [] for split in ("train", "val", "test")}
     for category, spec in specs.items():
@@ -48,7 +48,7 @@ def prepare(root="data/processed/strokes"):
         for name,expected in manifest["files"].items():
             if digest(root/name)!=expected: raise ValueError(f"Corrupt prepared motor data: {name}")
         print(f"Verified existing motor data at {root}",flush=True);return
-    specs=read_json(Path(__file__).with_name("stroke-sources.json"))
+    specs=read_json(Path(__file__).parent / "configs/stroke-sources.json")
     drawings=split_drawings()
     write_json(root / "drawings.json", drawings)
     fly = PaintingFly()
@@ -65,8 +65,8 @@ def prepare(root="data/processed/strokes"):
     Path("web/assets").mkdir(exist_ok=True)
     fly.reset()
     Path("web/assets/fly-scene.json").write_text(json.dumps(fly.scene(), separators=(",", ":")))
-    for name, spec in read_json("web/assets/sources.json").items():
-        checked_download(Path("web/assets") / name, spec)
+    for name, spec in read_json(Path(__file__).parent / "configs/web-sources.json").items():
+        checked_download(Path("web/vendor") / name, spec)
     write_json(root / "manifest.json", dict(kind="quickdraw_motor_imitation_v1", drawing_leg="lf", sources=specs,
         drawings={s: len(v) for s, v in drawings.items()}, files=files, seed=1729,
         simulation="FlyGym 2.1.0 / MuJoCo 3.9.0", observations=40, actions=14,

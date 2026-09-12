@@ -1,7 +1,7 @@
 // Real Three.js scene + streamed contact-to-canvas checks, without a browser/GPU.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 (async()=>{
-  const THREE=await import('../web/assets/three.core.js'),body={THREE};
+  const THREE=await import('../web/vendor/three.core.js'),body={THREE};
   vm.runInNewContext(fs.readFileSync('web/fly-body.js','utf8').replace(/^import .*;$/mg,'').replace('export function','function'),body);
   const data=JSON.parse(fs.readFileSync('web/assets/fly-scene.json','utf8')),elements={},inkCalls=[],surfaceDraws=[],listeners={};
   let renderLoop,scene,packets=[],sounds=[],requests=[];
@@ -11,7 +11,6 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
     return elements[id]={width:1024,height:1024,clientWidth:900,clientHeight:560,hidden:false,value:'',textContent:'',
       prepend(){},addEventListener(){},add(option){if(!this.value)this.value=option.value;},getContext:()=>ctx};
   }
-  const drawings=[{id:'long',category:'cat',drawing:[[[0,64,128,255],[0,64,128,255]]]},{id:'short',category:'flower',drawing:[[[0,255],[0,255]]]}];
   const context={THREE:{...THREE,TextureLoader:class{load(src){return new THREE.Texture({src});}},WebGLRenderer:class{constructor(){this.domElement=element('webgl');}setPixelRatio(){}setClearColor(){}setSize(){}setAnimationLoop(fn){renderLoop=fn;}render(s){scene=s;}}},
     OrbitControls:class{constructor(){this.target=new THREE.Vector3();}update(){}addEventListener(){}},flyObjects:body.flyObjects,
     document:{createElement:()=>element('canvas-surface'),getElementById:element,querySelectorAll:()=>[],querySelector:()=>({content:'token'}),hidden:false},

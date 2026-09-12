@@ -20,7 +20,7 @@ class Classifier(nn.Module):
     def forward(self,x): return self.net(x)
 
 
-def train(root="data/processed/quickdraw", out="runs/quality", steps=2000):
+def train(root="data/processed/quickdraw-10", out="runs/quality", steps=2000):
     seed_all(2026,2);root=Path(root);out=Path(out);out.mkdir(parents=True,exist_ok=True)
     manifest=read_json(root/'manifest.json');model=Classifier(len(manifest['classes']))
     x,y=image_data(root,'train',32);vx,vy=image_data(root,'val',32)

@@ -261,9 +261,6 @@ def run(config_path=None, out=None, resume=None, device_name="auto", stop_after=
                         preview=grid(to_images(samples))
                         (output/"samples").mkdir(exist_ok=True)
                         preview.save(output/"samples"/f"{step:06d}.png");preview.save(output/"preview.png")
-                        if Path("runs/quality/best.pt").exists() and model.classes==["cat","flower","butterfly"]:
-                            from quality import measure
-                            row["generation"]=measure(samples,labels)
                     if plateau:
                         converged = plateau.update(result["clean_image_mse"], step, optimizer)
                         row["plateau"] = dict(plateau.state)

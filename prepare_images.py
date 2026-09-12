@@ -19,7 +19,7 @@ def rasterize(drawing):
 
 def prepare(root="data/processed/quickdraw-10", per_class=10000):
     root = Path(root); root.mkdir(parents=True, exist_ok=True)
-    sources = read_json("stroke-sources.json")
+    sources = read_json(Path(__file__).parent / "configs/stroke-sources.json")
     classes = list(sources)
     if (root/"manifest.json").exists():
         manifest=read_json(root/"manifest.json")

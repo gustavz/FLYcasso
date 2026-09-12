@@ -169,6 +169,10 @@ class PipelineTest(unittest.TestCase):
                     with urllib.request.urlopen(url + "/assets/" + asset) as response:
                         self.assertEqual(response.headers["Content-Type"], "image/png")
                         self.assertEqual(response.read(8), b"\x89PNG\r\n\x1a\n")
+                for asset in ("three.module.js", "three.core.js", "OrbitControls.js"):
+                    with urllib.request.urlopen(url + "/assets/" + asset) as response:
+                        self.assertEqual(response.headers["Content-Type"], "text/javascript")
+                        self.assertEqual(response.read(), (Path(__file__).resolve().parents[1] / "web/vendor" / asset).read_bytes())
                 for host in ("evil.example", "fly.example.ts.net:8443.evil.example"):
                     spoofed = urllib.request.Request(url, headers={"Host": host})
                     with self.assertRaises(urllib.error.HTTPError) as error:

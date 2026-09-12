@@ -12,7 +12,7 @@ import torch
 from PIL import Image, ImageDraw
 
 from common import digest, read_json, write_json
-from paint import CANVAS_Z, PaintingFly, drawing_targets
+from paint import PaintingFly, drawing_targets
 from train_motor import load_motor
 
 

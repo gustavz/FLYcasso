@@ -1,6 +1,6 @@
 # Models
 
-Both models use the full MaleCNS v1.0 graph: 166,700 neurons and 25,582,938 directed connections. No additional neuron or edge pruning is applied. Source URLs and checksums are in `sources.json`.
+Both models use the full MaleCNS v1.0 graph: 166,700 neurons and 25,582,938 directed connections. No additional neuron or edge pruning is applied. Source URLs and checksums are in `configs/sources.json`.
 
 Connections are normalized by incoming contact count. GABA/glutamate sources receive negative weights; others receive positive weights. These are engineered rate dynamics, not receptor-level physiology. Graph weights stay fixed; adapters, neuron gains and biases are learned.
 
@@ -21,7 +21,7 @@ The final update is `h = tanh(bias + gain*(W @ h))`. It removes the direct input
 - A separate painting model shares one full circuit between stroke generation and physical control. Width 64; three circuit updates.
 - First, the controller learns from executed teacher movements and corrections collected at states visited by its own policy. The loss uses exact pen forward kinematics and its MuJoCo Jacobian, alongside joint imitation.
 - Inputs include joint positions, velocities and target displacement. The circuit predicts small corrections to the current pose, rather than relearning absolute joint positions. Only the seven left front-leg outputs control the pen; the other front leg remains at rest.
-- Initial demonstrations use 24 short training drawings. Recovery trajectories expand this curriculum. Complete held-out drawings measure pen tracking and actual ink coverage.
+- Initial demonstrations use eight short training drawings per category. Recovery trajectories expand this curriculum. Complete held-out drawings measure pen tracking and actual ink coverage.
 - Next, category-conditioned diffusion learns 256-point stroke sequences across five spatial scales. The trained control circuit is held fixed while the stroke adapters learn. Quick, Draw! supplies 100,000 training sketches, 5,000 validation sketches, and 5,000 test sketches across cat, flower, butterfly, fish, bird, tree, house, star, apple and umbrella. Motor validation/test IDs are excluded from stroke training. Rasterized copies serve stroke evaluation only; diffusion uses CIFAR-10.
 - Inference receives only a category and seed. It generates new strokes and executes them through the learned controller. It does not retrieve references or run inverse kinematics.
 - Ink comes only from simulated pen–paper contact. The thorax is tethered. The MaleCNS graph and female-derived NeuroMechFly body are different specimens.

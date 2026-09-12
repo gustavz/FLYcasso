@@ -5,7 +5,7 @@
 - Publisher/download: https://male-cns.janelia.org/download/
 - Data contributors: FlyEM at HHMI Janelia Research Campus, University of Cambridge, MRC Laboratory of Molecular Biology, Google Research, and the collaborators credited by the release.
 - Dataset license: **Creative Commons Attribution 4.0 International** (https://creativecommons.org/licenses/by/4.0/).
-- Exact source URLs, release names and hashes: `sources.json`.
+- Exact source URLs, release names and hashes: `configs/sources.json`.
 - Modifications: select annotated neuronal objects, exclude explicit Glia/unassigned objects, remap exact IDs to matrix positions, aggregate any duplicate edges, assign a simplified transmitter sign, normalize by incoming contact counts, serialize CSR arrays. Original retained contact counts and body IDs remain available in the processed graph.
 - Keep this attribution with redistributed processed graphs; follow the release page's current requested publication citations. This project is not endorsed by the data producers or Google.
 
@@ -30,10 +30,10 @@ Dependencies retain their own licenses: PyTorch (BSD-style), NumPy/SciPy/pandas 
 The sampler uses clean-image (`x0`) prediction, also supported as `prediction_type="sample"` in the reference [Diffusers DDIM scheduler](https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_ddim.py). The compact readout motivates this engineering choice; image quality remains an experimental question.
 # Front-leg painting additions
 
-- **Quick, Draw! dataset**: made available by Google, Inc. under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source: [googlecreativelab/quickdraw-dataset](https://github.com/googlecreativelab/quickdraw-dataset). The simplified cat, flower and butterfly vector files are pinned in `stroke-sources.json`. FLYcasso selects disjoint drawing IDs, rescales/reorients paths into a fly-sized canvas, adds lift motions and derives simulated joint demonstrations. These are modifications of the human drawing data, not recorded fly motions. Google does not endorse this project.
+- **Quick, Draw! dataset**: made available by Google, Inc. under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source: [googlecreativelab/quickdraw-dataset](https://github.com/googlecreativelab/quickdraw-dataset). The ten simplified category vector files are pinned in `configs/stroke-sources.json`. FLYcasso selects disjoint drawing IDs, rescales/reorients paths into a fly-sized canvas, adds lift motions and derives simulated joint demonstrations. These are modifications of the human drawing data, not recorded fly motions. Google does not endorse this project.
 - **NeuroMechFly / FlyGym 2.1.0**: [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), Apache-2.0. Derived body assets retain the license in `web/assets/FLYGYM-LICENSE.txt`. FLYcasso composes a tethered model, adds two front-tarsus brushes and a canvas, and exports simplified body meshes and transforms for viewing. The male connectome and NeuroMechFly's female-derived body come from different specimens; this is an engineered coupling, not a matched biological digital twin.
 - **MuJoCo 3.9.0**: [google-deepmind/mujoco](https://github.com/google-deepmind/mujoco), Apache-2.0, installed as a dependency for physical dynamics.
-- **Three.js 0.180.0**: [mrdoob/three.js](https://github.com/mrdoob/three.js), MIT. Unmodified module/core/OrbitControls files are vendored with `web/assets/THREE-LICENSE.txt`; exact hashes are in `web/assets/sources.json`.
+- **Three.js 0.180.0**: [mrdoob/three.js](https://github.com/mrdoob/three.js), MIT. Unmodified module/core/OrbitControls files are vendored with `web/vendor/THREE-LICENSE.txt`; exact hashes are in `configs/web-sources.json`.
 
 ## Brand illustration
 

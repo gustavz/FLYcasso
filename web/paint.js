@@ -38,7 +38,7 @@ function updatePaper() {
   paperTexture.needsUpdate=true;
 }
 
-let pen,penTip,penStraps=[];
+let pen,penStraps=[];
 const penAxis=new THREE.Vector3(),penUp=new THREE.Vector3(0,0,1);
 function attachPens() {
   const brush=objects.find(o=>o.name==='nmf/lf_brush');brush.visible=false;
@@ -76,7 +76,7 @@ function attachPens() {
   for(let i=0;i<=96;i++){const angle=i/96*Math.PI*2,radius=.0095+.0025*Math.cos(6*angle),x=radius*Math.cos(angle),y=radius*Math.sin(angle);if(i)emblemShape.lineTo(x,y);else emblemShape.moveTo(x,y);}
   const emblem=new THREE.Mesh(new THREE.ShapeGeometry(emblemShape),new THREE.MeshStandardMaterial({color:'#fffdf4',roughness:.3,side:THREE.DoubleSide}));
   emblem.name='cap-emblem';emblem.position.z=.4775;pen.add(emblem);
-  penTip=new THREE.Object3D();penTip.name='pen-contact-tip';pen.add(penTip);
+  const penTip=new THREE.Object3D();penTip.name='pen-contact-tip';pen.add(penTip);
   for(const name of ['nmf/lf_tarsus4','nmf/lf_tarsus5']) {
     const strap=new THREE.Mesh(new THREE.TorusGeometry(1,.10,8,32),new THREE.MeshStandardMaterial({color:'#e5bc76',roughness:.9}));
     strap.name='pen-strap';scene.add(strap);penStraps.push({strap,foot:objects.find(o=>o.name===name)});
