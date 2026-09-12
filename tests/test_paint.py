@@ -7,15 +7,44 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from common import Plateau
+from common import Plateau, digest, load_torch, save_torch, write_json
 if importlib.util.find_spec("flygym"):
     from paint import PaintingFly, CANVAS_Z, drawing_targets
 from prepare import fixture
 from strokes import StrokeDenoiser, vectorize, decode
-from train_motor import FlyMotor, FootPosition, validation, remap_stroke_classes
+from train_motor import FlyMotor, FootPosition, validation, remap_stroke_classes, train_strokes
 
 
 class PaintingTest(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements-paint.txt for stroke training checks")
+    def test_stroke_plateau_resume(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);config=fixture(root/'fixture')
+            config.update(stroke_diffusion=True,classes=['cat','flower'])
+            model=FlyMotor(config['graph'],config)
+            source=root/'control.pt'
+            save_torch(source,dict(task='front_leg_motor_v1',config=config,step=1,model=model.state_dict(),
+                best_val=1.,graph_sha256=digest(config['graph']),data_sha256='synthetic'))
+            data=root/'strokes';data.mkdir();files={}
+            for split in ('train','val'):
+                path=data/f'{split}.npz'
+                np.savez(path,strokes=np.zeros((4,3,256),dtype=np.float32),labels=np.array([0,1,0,1]))
+                files[path.name]=digest(path)
+            write_json(data/'manifest.json',dict(classes=config['classes'],files=files))
+            out=root/'run'
+            with patch('quality.measure',return_value={}):
+                train_strokes(out,source,steps=1,device_name='cpu',dataset=data,until_convergence=True)
+                state,_=load_torch(out/'last.pt')
+                self.assertEqual(state['stroke_plateau']['min_steps'],30000)
+                self.assertEqual(state['stroke_plateau']['reductions'],0)
+                state['stroke_plateau']['min_steps']=31000
+                save_torch(out/'last.pt',state)
+                train_strokes(out,None,resume=out/'last.pt',steps=1,device_name='cpu',until_convergence=True)
+            resumed,_=load_torch(out/'last.pt')
+            self.assertEqual(resumed['step'],2)
+            self.assertEqual(resumed['stroke_plateau']['min_steps'],31000)
+
     @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements-paint.txt for motor physics checks")
     def test_stopping_and_motor_physics(self):
         old=torch.tensor([[1.,2.],[3.,4.],[5.,6.]])

@@ -40,7 +40,7 @@ with Path(os.environ["CALL_LOG"]).open("a") as log:
     log.write(json.dumps(args) + "\\n")
 if args[0] == "-c":
     if "status.json" in args[1]: sys.exit(int(os.environ["INCOMPLETE"]))
-    print(os.environ["REMAINING"] if "max(0," in args[1] else "checkpoint-hash")
+    print("checkpoint-hash")
 ''')
             launcher.chmod(0o755)
             for scenario in ("fresh", "resume", "complete"):
@@ -52,7 +52,7 @@ if args[0] == "-c":
                         run = folder / name; run.mkdir(); (run / "last.pt").touch()
                 log = folder / "calls.jsonl"
                 env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], CALL_LOG=str(log),
-                           INCOMPLETE="0" if scenario == "complete" else "1", REMAINING="0" if scenario == "complete" else "25")
+                           INCOMPLETE="0" if scenario == "complete" else "1")
                 subprocess.run(["bash", str(folder / "run.sh"), "configs/full.json", "image run"], env=env, check=True)
                 subprocess.run(["bash", str(folder / "run_motor.sh"), "motor run"], env=env, check=True)
                 calls = [json.loads(line) for line in log.read_text().splitlines()]

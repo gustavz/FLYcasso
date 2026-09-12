@@ -34,7 +34,7 @@ bash run_motor.sh  # category drawing: download, train, evaluate, export
 
 Training uses the GPU when available. Painting first learns pen control, then stroke generation. Weights are generated locally; no pretrained release is available yet.
 
-Rerun the same command to resume interrupted training. Inference bundles and evaluation results go in each run's `inference/` directory. Stroke generation uses 30,000 steps; this is a training budget, not a convergence guarantee.
+Rerun the same command to resume interrupted training. Both diffusion loops reduce their learning rate and stop on validation plateaus; stroke generation runs at least 30,000 steps. Inference bundles and evaluation results go in each run's `inference/` directory.
 
 ## App
 

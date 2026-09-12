@@ -14,11 +14,10 @@ if [[ ! -f "$run_dir/last.pt" ]]; then
       python train_motor.py --out "$run_dir-control"
     fi
   fi
-  python train_motor.py --phase strokes --init-from "$run_dir-control/best.pt" --out "$run_dir" --steps 30000
+  python train_motor.py --phase strokes --init-from "$run_dir-control/best.pt" --out "$run_dir" --until-convergence
 else
-  remaining="$(python -c 'from common import load_torch; import sys; print(max(0,30000-load_torch(sys.argv[1])[0]["step"]))' "$run_dir/last.pt")"
-  if (( remaining > 0 )); then
-    python train_motor.py --phase strokes --resume "$run_dir/last.pt" --steps "$remaining"
+  if ! python -c 'import json,sys; from pathlib import Path; p=Path(sys.argv[1])/"status.json"; sys.exit(not (p.exists() and json.loads(p.read_text())["status"]=="validation_plateau"))' "$run_dir"; then
+    python train_motor.py --phase strokes --resume "$run_dir/last.pt" --until-convergence
   fi
 fi
 result="$run_dir/inference/$(python -c 'from common import digest; import sys; print(digest(sys.argv[1])[:16])' "$run_dir/best.pt")"

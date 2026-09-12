@@ -255,7 +255,7 @@ def remap_stroke_classes(current, old, names, old_names):
     return result
 
 
-def train_strokes(out, initial, resume=None, steps=None, device_name="auto", threads=2, init_strokes=None, dataset="data/processed/quickdraw-strokes-10"):
+def train_strokes(out, initial, resume=None, steps=None, device_name="auto", threads=2, init_strokes=None, dataset="data/processed/quickdraw-strokes-10", until_convergence=False):
     """Learn category-to-strokes while keeping the trained leg controller fixed."""
     from strokes import StrokeDenoiser, decode
     from diffusion import Diffusion
@@ -310,6 +310,8 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
     if resume:
         optimizer.load_state_dict(state["optimizer"]);step=state["step"];best=state["best_val"]
         ema={k:v.to(device) for k,v in state["stroke_ema"].items()};torch.set_rng_state(state["rng"])
+    plateau=Plateau(state.get("stroke_plateau") if resume else None,min_steps=30000,min_delta=.0001) if until_convergence else None
+    if plateau and resume and not state.get("stroke_plateau"): plateau.state["best"]=best
     output=Path(out);output.mkdir(parents=True,exist_ok=True)
     if not resume and (output/'last.pt').exists(): raise ValueError("Existing stroke run: use --resume")
     hashes={k:state[k] for k in ("graph_sha256","data_sha256")};del state
@@ -319,10 +321,12 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
         code={name:digest(name) for name in ('train_motor.py','model.py','metal.py','strokes.py','diffusion.py')}))
     def checkpoint(name):
         save_torch(output/name,dict(task="front_leg_motor_v1",config=config,step=step,model=model.state_dict(),
-            optimizer=optimizer.state_dict(),stroke_ema=ema,best_val=best,rng=torch.get_rng_state(),stroke_data_sha256=data_hash,**hashes))
+            optimizer=optimizer.state_dict(),stroke_ema=ema,best_val=best,rng=torch.get_rng_state(),stroke_data_sha256=data_hash,
+            stroke_plateau=plateau.state if plateau else None,**hashes))
     start=time.monotonic(); first=step; end=step+steps if steps else float('inf')
     with (output/'metrics.jsonl').open('a') as log:
         while step<end:
+            converged=False
             model.train(); idx=torch.randint(len(train_x),(32,));x=train_x[idx].to(device).reshape(-1,3,16,16);labels=train_y[idx].to(device)
             t=torch.randint(1000,(len(x),)).to(device);noise=torch.randn(x.shape).to(device)
             condition=labels.clone()
@@ -339,7 +343,8 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
                 decay=min(.999,(step+1)/(step+10))
                 for k,v in model.state_dict().items():
                     if k in ema: ema[k].lerp_(v,1-decay)
-            row=dict(step=step,train_loss=loss.item(),unweighted_mse=error.mean().item(),phase="strokes",device=str(device),seconds_per_step=(time.monotonic()-start)/(step-first))
+            row=dict(step=step,train_loss=loss.item(),unweighted_mse=error.mean().item(),phase="strokes",device=str(device),
+                learning_rate=optimizer.param_groups[0]["lr"],seconds_per_step=(time.monotonic()-start)/(step-first))
             if step%250==0 or step==end:
                 model.eval();raw={k:v.detach().clone() for k,v in model.state_dict().items() if k in ema};model.load_state_dict(ema,strict=False)
                 rng=torch.Generator().manual_seed(2026);scores=[]
@@ -367,11 +372,15 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
                 (output/'samples').mkdir(exist_ok=True);canvas.save(output/'samples'/f'{step:06d}.png')
                 model.load_state_dict(raw,strict=False)
                 score=sum(scores)/len(scores);row['validation']=dict(stroke_mse=score,weights="ema")
+                if plateau:
+                    converged=plateau.update(score,step,optimizer);row['plateau']=dict(plateau.state)
                 if score<best:best=score;checkpoint('best.pt')
                 checkpoint('last.pt')
             if step%10==0 or 'validation' in row:
                 print(json.dumps(row),flush=True);log.write(json.dumps(row)+'\n');log.flush()
-                write_json(output/'status.json',dict(row,status="step_limit" if step==end else "training",updated_at=time.time()))
+                write_json(output/'status.json',dict(row,status="validation_plateau" if converged else "step_limit" if step==end else "training",
+                    until_convergence=until_convergence,updated_at=time.time()))
+            if converged: break
     checkpoint('last.pt')
 
 
@@ -379,6 +388,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out")
     parser.add_argument("--phase", choices=["control","strokes"], default="control")
+    parser.add_argument("--until-convergence", action="store_true", help="Reduce stroke learning rate on validation plateaus and stop after at least 30,000 steps")
     parser.add_argument("--resume")
     parser.add_argument("--stroke-dataset",default="data/processed/quickdraw-strokes-10")
     parser.add_argument("--init-strokes", help="Initialize stroke adapters while retaining the selected controller")
@@ -393,7 +403,8 @@ if __name__ == "__main__":
         parser.error("Threads and step limits must be positive")
     args.out = args.out or (str(Path(args.resume).parent) if args.resume else "runs/motor")
     if args.init_strokes and args.phase!="strokes": parser.error("--init-strokes requires --phase strokes")
+    if args.until_convergence and args.phase!="strokes": parser.error("--until-convergence requires --phase strokes; control training uses held-out pen accuracy")
     if args.phase == "strokes":
-        train_strokes(args.out, args.init_from, args.resume, args.steps, args.device, args.threads, args.init_strokes,args.stroke_dataset)
+        train_strokes(args.out, args.init_from, args.resume, args.steps, args.device, args.threads, args.init_strokes,args.stroke_dataset,args.until_convergence)
     else:
         train(args.out, args.resume, args.steps, args.threads, args.graph, args.dataset, args.device, args.init_from)

@@ -364,7 +364,7 @@
       </article>
     </div>
     <section class="model-notes" aria-labelledby="connectome-title"><h3 id="connectome-title">Connectome &amp; training</h3>
-      <dl><dt>Graph</dt><dd>MaleCNS · 166,700 neurons · 25,582,938 directed connections</dd><dt>Dynamics</dt><dd>Fixed signed CSR adjacency · tanh rate units · 3 recurrent updates</dd><dt>Diffusion</dt><dd>Cosine schedule · 1,000 noise levels · clean-image prediction · condition dropout 0.1</dd><dt>Stopping</dt><dd>Image model: validation-plateau rule after ≥20,000 steps</dd><dt>Sources</dt><dd><a href="https://neuromechfly.org/">NeuroMechFly</a> · <a href="https://github.com/googlecreativelab/quickdraw-dataset">Quick, Draw!</a></dd></dl>
+      <dl><dt>Graph</dt><dd>MaleCNS · 166,700 neurons · 25,582,938 directed connections</dd><dt>Dynamics</dt><dd>Fixed signed CSR adjacency · tanh rate units · 3 recurrent updates</dd><dt>Diffusion</dt><dd>Cosine schedule · 1,000 noise levels · clean-image prediction · condition dropout 0.1</dd><dt>Stopping</dt><dd>Validation plateau · image ≥20,000 steps · strokes ≥30,000 steps · 3 LR reductions</dd><dt>Sources</dt><dd><a href="https://neuromechfly.org/">NeuroMechFly</a> · <a href="https://github.com/googlecreativelab/quickdraw-dataset">Quick, Draw!</a></dd></dl>
       <p><a id="recipe-training" href="#diffusion" hidden>Download recipe</a></p>
     </section>
   </section>

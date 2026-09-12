@@ -32,7 +32,7 @@ Low loss is not evidence of recognizable output. Inspect generated samples, clas
 
 Reserve the test split for final evaluation. Compare intact and disabled-edge inference, and separately trained shuffled-graph controls, before claiming a benefit from biological wiring.
 
-Image validation plateaus are operational stopping conditions. The controller's quality gate requires stroke F1 ≥0.90 and mean tip error <0.01 mm on three held-out drawings. The default category-training script runs 30,000 steps; this budget is not quality certification.
+Both diffusion loops use validation plateaus as operational stopping conditions: at least 20,000 image steps or 30,000 stroke steps, three learning-rate reductions and eight stale checks. Stroke scheduling state is saved with the optimizer for resume. The controller's quality gate requires stroke F1 ≥0.90 and mean tip error <0.01 mm on three held-out drawings. These stopping rules do not certify category recognition or image quality.
 
 Exports contain inference weights, the graph, hashes and notices. No reference files are needed for inference. Resume from original training checkpoints, not exports.
 
