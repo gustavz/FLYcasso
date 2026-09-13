@@ -163,7 +163,7 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
                 config_path=motor_path.parent/'config.json'
                 if config_path.exists() and read_json(config_path).get('task')=='motor':
                     from flycasso.muscle import MuscleFly
-                    return self.reply(200,MuscleFly().scene())
+                    return self.reply(200,MuscleFly(full_body=True).scene())
                 return self.reply(200,(root/'web/assets/fly-scene.json').read_bytes(),'application/json')
             if self.path.split("?",1)[0] in ("/diffusion-preview.png", "/motor-preview.png"):
                 task=self.path.split("-",1)[0][1:]
@@ -243,24 +243,29 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             import torch
             from flycasso.train_brain import load
             from flycasso.muscle import MuscleFly
+            from flycasso.body import BodyReadout
             stamp=motor_path.stat().st_mtime_ns
             if motor_cache.get('stamp')!=stamp:
                 net,state=load(motor_path,str(next(model.parameters()).device))
                 if net.task!='motor':raise ValueError('Select a muscle-control checkpoint')
-                motor_cache.update(model=net,state={'step':state['step']},stamp=stamp)
+                ports=Path(state['config'].get('body_ports',str(Path(state['config']['ports']).parent/'body.npz')))
+                if not ports.is_absolute() and (motor_path.parent/ports).exists():ports=motor_path.parent/ports
+                readout=BodyReadout(ports,state['hashes']['graph'],net.n_neurons,next(net.parameters()).device)
+                motor_cache.update(model=net,body=readout,state={'step':state['step']},stamp=stamp)
             net=motor_cache['model'];state=motor_cache['state'];device=next(net.parameters()).device
             if request['category'] not in net.classes:raise ValueError('Unknown category')
-            fly=MuscleFly();hidden=None;started=time.monotonic();steps=256
+            fly=MuscleFly(full_body=True);hidden=None;started=time.monotonic();steps=256
             label=torch.tensor([net.classes.index(request['category'])],device=device)
             cue=torch.tensor(np.random.default_rng(request['seed']).normal(size=(1,3)),dtype=torch.float32,device=device).tanh()
-            self.event(dict(type='start',training_step=state['step'],neurons=net.n_neurons,device=str(device),muscle_driven=True))
+            self.event(dict(type='start',training_step=state['step'],neurons=net.n_neurons,device=str(device),muscle_driven=True,
+                            peripheral_motion=True,peripheral_joints=motor_cache['body'].mapping))
             with torch.inference_mode():
                 coefficients=net.core.coefficients()
                 for i in range(steps):
                     im,pr=fly.observe()
                     action,hidden=net(torch.from_numpy(im)[None].to(device),label,torch.tensor([i/(steps-1)],device=device),
                         cue,hidden,torch.from_numpy(pr)[None].to(device),coefficients=coefficients)
-                    fly.step(action[0].cpu().numpy(),record=True)
+                    fly.step(action[0].cpu().numpy(),record=True,body_action=motor_cache['body'](hidden)[0].cpu().numpy())
                     self.event(dict(type='frames',frames=fly.frames,progress=(i+1)/steps,foot_error_mm=None,
                         wall_seconds=time.monotonic()-started))
             self.event(dict(type='done',simulation_seconds=float(fly.data.time),wall_seconds=time.monotonic()-started))

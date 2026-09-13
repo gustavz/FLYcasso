@@ -26,7 +26,7 @@ def load(path, device="auto", raw=False, graph=None):
         from flycasso.muscle import body_sources
         if c['body']!=body_sources():raise ValueError('Changed muscle body or initial pose')
     if graph is not None:c['graph']=str(Path(graph).resolve())
-    for name in ['graph','ports']:
+    for name in ['graph','ports']+(['body_ports'] if 'body_ports' in c else []):
         local=Path(path).parent/Path(c[name]).name
         if not Path(c[name]).is_absolute() and local.exists():c[name]=str(local.resolve())
         if digest(c[name])!=state['hashes'][name]:raise ValueError(f'Changed {name}')

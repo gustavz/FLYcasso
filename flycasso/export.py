@@ -26,12 +26,19 @@ def export(checkpoint, output, graph=None):
             if not path.is_absolute() and (Path(checkpoint).parent/path).exists():artifacts[k]=Path(checkpoint).parent/path
         for k,path in artifacts.items():
             if digest(path)!=state['hashes'][k]:raise ValueError(f'Changed {k}')
+        hashes=dict(state['hashes'])
+        if config['task']=='motor':
+            from flycasso.body import BodyReadout
+            body_path=Path(config.get('body_ports',str(artifacts['ports'].parent/'body.npz')))
+            if not body_path.is_absolute() and (Path(checkpoint).parent/body_path).exists():body_path=Path(checkpoint).parent/body_path
+            BodyReadout(body_path,hashes['graph'],len(state['ema']['core.bias']),'cpu')
+            artifacts['body_ports']=body_path;hashes['body_ports']=digest(body_path)
         output.mkdir(parents=True)
         for k,path in artifacts.items():
             config[k]=k+'.npz';shutil.copyfile(path,output/config[k])
         config['dataset']='data/processed/'+Path(config['dataset']).name
         portable={k:state[k] for k in ['format','hashes','step','ema']}
-        portable.update(config=config,inference_only=True)
+        portable.update(config=config,hashes=hashes,inference_only=True)
         save_torch(output/'model.pt',portable);write_json(output/'config.json',config)
         for name in ['docs/BRAIN_FIRST.md','docs/THIRD_PARTY.md','LICENSE']:
             shutil.copyfile(ROOT/name,output/Path(name).name)

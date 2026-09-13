@@ -52,3 +52,26 @@ python -m flycasso.evaluate_brain --checkpoint runs/brain-motor/best.pt --out re
 - [FlyGym muscle documentation](https://neuromechfly.org/tutorials/6_muscle_imitation/): supported muscles, sensors and simulation limits.
 
 Prepared muscle assets retain their upstream licenses. The initial mesh acquisition uses FlyGym's public asset loader; downloaded assets are local and are not committed here.
+
+## Peripheral movement in the leg-painting studio
+
+The studio also reads 24 joint commands from the same recurrent neural state:
+three joints in each of the other five legs, neck yaw, abdomen pitch, proboscis
+pitch, and both wings, antenna bases and halteres. Distal segments follow their
+parent joints. This is coarse articulation, not an individually actuated model
+of every anatomical joint or muscle.
+
+The original 15 painting muscles retain their dynamics. Additional joints use
+fixed population pooling and bounded position actuators with passive stiffness,
+damping and force limits. Named leg-muscle antagonists determine the leg pools;
+other axes and gains are engineered body-region mappings. The exact neuron IDs,
+weights, graph checksum and annotation checksum are recorded in `body.npz`, built
+by `flycasso.anatomy` and included in motor inference exports.
+
+The thorax remains anchored, and only pen–paper collisions are enabled. Other
+joint motion has no sensory feedback into the circuit in this experiment. Only
+the painting task is trained; the extra readouts have no learned parameters and
+are attached during studio execution. They can change as the shared circuit is
+trained, but receive no movement targets. This does not claim natural grooming,
+flight or locomotion. Paired physics checks verify that the added motion leaves
+the painting leg's dynamics unchanged within numerical tolerance.

@@ -126,5 +126,55 @@ class CircuitTest(unittest.TestCase):
                 for result,expected in [(actual.cpu(),target),(a.grad.cpu(),x.grad),(b.grad.cpu(),v.grad)]:
                     torch.testing.assert_close(result,expected,rtol=2e-5,atol=2e-5)
 
+    def test_peripheral_motion(self):
+        import pandas as pd
+        from flycasso.body import joints,prepare,BodyReadout
+        from flycasso.common import digest
+        from flycasso.muscle import MuscleFly
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);records=[]
+            for item in joints():
+                for side in [item['side']] if item['side'] else ['L','R']:
+                    for name in [item['positive'],item['negative']] if item['positive'] else ['test']:
+                        records.append(dict(bodyId=len(records)+100,superclass='vnc_motor',subclass=item['subclass'],somaSide=side,type=name))
+            table=pd.DataFrame(records);table.to_feather(root/'annotations.feather')
+            np.savez(root/'graph.npz',ids=table.bodyId.to_numpy())
+            prepare(root/'graph.npz',root/'annotations.feather',root/'body.npz')
+            read=BodyReadout(root/'body.npz',digest(root/'graph.npz'),len(records),'cpu')
+            state=torch.zeros(len(records),1,requires_grad=True)
+            self.assertEqual(read(state).abs().max().item(),0)
+            with torch.no_grad():
+                for indices,weights in zip(read.index,read.scale):
+                    chosen=weights!=0;state[indices[chosen],0]=weights[chosen].sign()*.3
+            commands=read(state)[0].numpy()
+            self.assertTrue((np.abs(commands)>1e-4).all())
+            self.assertFalse(read(state).requires_grad)
+            with self.assertRaisesRegex(ValueError,'match'):BodyReadout(root/'body.npz','wrong',len(records),'cpu')
+            base=MuscleFly();still=MuscleFly(full_body=True);moving=MuscleFly(full_body=True)
+            self.assertEqual(moving.model.nu,39)
+            q=[moving.model.jnt_qposadr[moving.model.actuator_trnid[i,0]] for i in range(15,39)]
+            thorax=moving.model.body('Thorax').id;anchor=moving.data.xpos[thorax].copy()
+            for _ in range(80):
+                action=np.full(15,.1)
+                base.step(action);still.step(action,body_action=np.zeros(24));moving.step(action,body_action=commands,record=True)
+            self.assertTrue((np.abs(still.data.qpos[q]-moving.data.qpos[q])>1e-4).all())
+            np.testing.assert_allclose(base.observe()[1],moving.observe()[1],atol=1e-6)
+            np.testing.assert_array_equal(base.observe()[0],moving.observe()[0])
+            np.testing.assert_array_equal(moving.data.xpos[thorax],anchor)
+            self.assertTrue(np.isfinite(moving.data.qpos).all())
+            self.assertTrue((np.abs(moving.data.qpos[q])<np.array([j['extent'] for j in joints()])+.01).all())
+            self.assertEqual(len(moving.frames[-1]['body_controls']),24)
+            self.assertTrue(moving.scene()['peripheral_motion'])
+            with self.assertRaises(ValueError):moving.step(action,body_action=np.full(24,np.nan))
+            from flycasso.common import save_torch
+            from flycasso.export import export
+            np.savez(root/'ports.npz',test=[1])
+            save_torch(root/'checkpoint.pt',dict(format='brain-first-v1',step=1,
+                config=dict(task='motor',graph=str(root/'graph.npz'),ports=str(root/'ports.npz'),dataset='test'),
+                hashes={k:digest(root/f'{k}.npz') for k in ['graph','ports']},ema={'core.bias':torch.zeros(len(records))}))
+            export(root/'checkpoint.pt',root/'bundle')
+            portable=BodyReadout(root/'bundle/body_ports.npz',digest(root/'graph.npz'),len(records),'cpu')
+            torch.testing.assert_close(portable(state),read(state))
+
 
 if __name__=='__main__': unittest.main()

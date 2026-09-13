@@ -66,6 +66,8 @@ def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/anno
     width=max(map(len,pools));index=np.zeros((15,width),np.int32);weights=np.zeros((15,width),np.float32)
     for i,rows in enumerate(pools):index[i,:len(rows)]=rows;weights[i,:len(rows)]=1/len(rows)
     np.savez_compressed(out/"motor.npz",input_channel=channels,input_scale=scale,output_index=index,output_scale=weights)
+    from flycasso.body import prepare as prepare_body
+    prepare_body(graph,annotations,out/'body.npz')
     write_json(out/"manifest.json",dict(graph_sha256=digest(graph),annotations_sha256=digest(annotations),
         files={p.name:digest(p) for p in out.glob('*.npz')},motor_pools=mapping,
         image_cue_body_ids=ids[cue].tolist(),motor_cue_body_ids=ids[motor_cue].tolist(),

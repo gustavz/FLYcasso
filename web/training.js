@@ -12,11 +12,11 @@ function circuitDetails(task, config) {
   text('samples',task==='motor'?'Free-running house · fixed cue 0.1, 0.2, 0.3':'10 classes · seed 42');
   text('loss',task==='motor'?'Muscle activation MSE · held-out demonstrations · EMA':'Image MSE across recurrent denoising sequence · EMA');
   text('checkpoint',`AdamW · initial LR ${config.lr} · batch ${config.batch} · EMA 0.999 · gradient clipping 1`);
-  text('execution',task==='motor'?'50 Hz muscle commands · 10 kHz MuJoCo physics · contact-based ink':`${config.steps} DDIM steps · ${config.ticks} neural updates per step · persistent state`);
+  text('execution',task==='motor'?'15 painting muscles · 24 additional circuit-driven joints · tethered body · 50 Hz commands · 10 kHz physics':`${config.steps} DDIM steps · ${config.ticks} neural updates per step · persistent state`);
   if(task==='motor') {
     const descriptions=column.querySelectorAll('[data-row="data"] dd');
     descriptions[2].textContent='320 training · 80 validation · 80 test muscle demonstrations';
-    document.getElementById('motor-measurement').textContent='Named motor pools; muscle-head grouping and receptor tuning are approximations.';
+    document.getElementById('motor-measurement').textContent='Only painting is supervised. Other body joints use fixed motor-pool readouts, without sensory feedback or body collisions. Non-leg axes and gains are approximations.';
   }
   const notes=document.querySelector('.model-notes dl');
   notes.innerHTML='<dt>Graph</dt><dd>MaleCNS · 166,700 neurons · 25,582,938 directed edges</dd><dt>Circuit-first dynamics</dt><dd>Learned edge gains, neuron biases and leak rates · fixed anatomical topology and signs · persistent state</dd><dt>Interfaces</dt><dd>Fixed sensory and task-cue electrodes and output pooling · zero learned adapter parameters</dd><dt>Stopping</dt><dd>Held-out error plateau · three learning-rate reductions · minimum 1,000 optimizer steps</dd><dt>Mapping limits</dt><dd>Rate dynamics, RGB electrodes, sensory tuning and muscle-head pooling are engineered approximations.</dd>';

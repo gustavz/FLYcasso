@@ -23,8 +23,8 @@ def body_sources():
         initial_pose_sha256=digest(Path(demo.__file__).parent/'muscle_imitation/assets/mocap/qpos/0002.npy'))
 
 
-@lru_cache(maxsize=1)
-def body_model():
+@lru_cache(maxsize=2)
+def body_model(full_body=False):
     # The compiled body is read-only; every fly has independent dynamic state.
     fly=MusculoskeletalFly();spec=fly.mjcf_root
     for g in spec.geoms:g.contype=g.conaffinity=0
@@ -38,13 +38,20 @@ def body_model():
     spec.worldbody.add_geom(name='paper',type=mj.mjtGeom.mjGEOM_BOX,
         pos=(*center[:2],z-.02),size=(.2,.2,.02),contype=4,conaffinity=2,
         friction=(.05,.001,.0001),solref=(.002,1))
+    if full_body:
+        from flycasso.body import add_joints
+        add_joints(spec)
     return spec.compile(),neutral,center,z
 
 
 class MuscleFly:
     dt=.02
-    def __init__(self):
-        self.model,self.neutral,self.center,self.z=body_model()
+    def __init__(self,full_body=False):
+        self.full_body=full_body
+        self.model,self.neutral,self.center,self.z=body_model(full_body)
+        names=[f"joint_LF{part}_{axis}" for part,axes in [("Coxa",["yaw","pitch","roll"]),("Trochanter",["yaw","pitch","roll"]),("Tibia",["pitch"])] for axis in axes]
+        self.joint_ids=np.array([self.model.joint(name).id for name in names])
+        self.q=self.model.jnt_qposadr[self.joint_ids];self.v=self.model.jnt_dofadr[self.joint_ids]
         self.data=mj.MjData(self.model);self.teacher_data=mj.MjData(self.model)
         self.site=self.model.site('pen_tip').id;self.brush=self.model.geom('pen').id;self.board=self.model.geom('paper').id
         groups=list(dict.fromkeys(MUSCLE_TYPES))
@@ -52,22 +59,26 @@ class MuscleFly:
         self.reset()
 
     def reset(self):
-        mj.mj_resetData(self.model,self.data);self.data.qpos[:7]=self.neutral
-        self.data.ctrl[:]=.1;self.data.act[:]=.1;mj.mj_forward(self.model,self.data)
+        mj.mj_resetData(self.model,self.data);self.data.qpos[self.q]=self.neutral
+        self.data.ctrl[:15]=.1;self.data.act[:]=.1;mj.mj_forward(self.model,self.data)
         self.canvas=Image.new('RGB',(32,32),'white');self.ink=ImageDraw.Draw(self.canvas);self.last=None
         self.last_world=None;self.frames=[]
 
     def observe(self):
         image=np.asarray(self.canvas,dtype=np.float32).transpose(2,0,1)/127.5-1
-        proprio=np.r_[(self.data.qpos[:7]-self.neutral),self.data.qvel[:7]/20].clip(-3,3).astype(np.float32)
+        proprio=np.r_[(self.data.qpos[self.q]-self.neutral),self.data.qvel[self.v]/20].clip(-3,3).astype(np.float32)
         return image,proprio
 
     def pixel(self, point):return tuple(((point[:2]-self.center[:2])*np.array([1,-1])/.4*31+15.5).tolist())
 
-    def step(self, action, record=False):
+    def step(self, action, record=False, body_action=None):
         action=np.asarray(action)
         if action.shape!=(15,) or not np.isfinite(action).all():raise ValueError('Expected 15 finite muscle activations')
-        self.data.ctrl[:]=np.clip(action,.0001,1)
+        if body_action is not None:
+            body_action=np.asarray(body_action)
+            if not self.full_body or body_action.shape!=(self.model.nu-15,) or not np.isfinite(body_action).all():raise ValueError("Invalid peripheral joint commands")
+            self.data.ctrl[15:]=np.clip(body_action,self.model.actuator_ctrlrange[15:,0],self.model.actuator_ctrlrange[15:,1])
+        self.data.ctrl[:15]=np.clip(action,.0001,1)
         ink=0
         self.frames=[]
         for _ in range(2):
@@ -84,7 +95,7 @@ class MuscleFly:
             tip=self.data.site_xpos[self.site].copy();tip[2]-=.015
             if contact is not None:tip=at.copy()
             if record:self.frames.append(dict(time=float(self.data.time),positions=self.data.geom_xpos.tolist(),
-                rotations=self.data.geom_xmat.tolist(),ink=marks,pen_down=[contact is not None],pen_tip=tip.tolist()))
+                rotations=self.data.geom_xmat.tolist(),ink=marks,pen_down=[contact is not None],pen_tip=tip.tolist(),body_controls=self.data.ctrl[15:].tolist()))
         return ink
 
     def scene(self):
@@ -106,6 +117,10 @@ class MuscleFly:
             if g['name']=='floor':g['color'][3]=0;g['size']=[0,0,0]
         scene.update(canvas=[self.center[0]-.2,self.center[0]+.2,self.center[1]-.2,self.center[1]+.2],
             canvas_z=self.z,pen_tip=(self.data.site_xpos[self.site]-np.array([0,0,.015])).tolist(),source='FlyMimic muscle-driven LF leg / FlyGym 2.1.0',muscle_driven=True)
+        scene["peripheral_motion"]=self.full_body
+        if self.full_body:
+            from flycasso.body import joints
+            scene["peripheral_joints"]=joints()
         return scene
 
     def expert(self, target):
@@ -116,15 +131,15 @@ class MuscleFly:
         jac=np.zeros((3,m.nv))
         for _ in range(15):
             mj.mj_forward(m,d);mj.mj_jacSite(m,d,jac,None,self.site)
-            delta=jac[:,:7].T@np.linalg.solve(jac[:,:7]@jac[:,:7].T+.001*np.eye(3),target-d.site_xpos[self.site])
-            d.qpos[:7]=np.clip(d.qpos[:7]+np.clip(delta,-.05,.05),m.jnt_range[:7,0],m.jnt_range[:7,1])
-        goal=d.qpos[:7].copy();d.qpos[:]=q;d.qvel[:]=velocity
-        mj.mj_forward(m,d);d.qacc[:]=0;d.qacc[:7]=np.clip(400*(goal-q[:7])-40*velocity[:7],-300,300)
-        mj.mj_inverse(m,d);required=d.qfrc_inverse[:7].copy()
-        d.act[:]=0;mj.mj_forward(m,d);base=d.qfrc_actuator[:7].copy()
+            delta=jac[:,self.v].T@np.linalg.solve(jac[:,self.v]@jac[:,self.v].T+.001*np.eye(3),target-d.site_xpos[self.site])
+            d.qpos[self.q]=np.clip(d.qpos[self.q]+np.clip(delta,-.05,.05),m.jnt_range[self.joint_ids,0],m.jnt_range[self.joint_ids,1])
+        goal=d.qpos[self.q].copy();d.qpos[:]=q;d.qvel[:]=velocity
+        mj.mj_forward(m,d);d.qacc[:]=0;d.qacc[self.v]=np.clip(400*(goal-q[self.q])-40*velocity[self.v],-300,300)
+        mj.mj_inverse(m,d);required=d.qfrc_inverse[self.v].copy()
+        d.act[:]=0;mj.mj_forward(m,d);base=d.qfrc_actuator[self.v].copy()
         columns=[]
         for i in range(15):
-            d.act[:]=0;d.act[i]=1;mj.mj_forward(m,d);columns.append(d.qfrc_actuator[:7]-base)
+            d.act[:]=0;d.act[i]=1;mj.mj_forward(m,d);columns.append(d.qfrc_actuator[self.v]-base)
         matrix=np.asarray(columns).T@self.group
         # A tiny activity penalty resolves redundant muscles without a learned helper.
         lhs=np.r_[matrix,.001*np.eye(len(self.group.T))];rhs=np.r_[required-base,np.zeros(len(self.group.T))]
