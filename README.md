@@ -22,14 +22,14 @@ Python 3.12. Run from the repository root.
 ```sh
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-paint.txt
+pip install -r requirements/paint.txt
 ```
 
 ## Train
 
 ```sh
-bash run.sh        # diffusion: download, train, evaluate, export
-bash run_motor.sh  # category drawing: download, train, evaluate, export
+bash scripts/run.sh        # diffusion: download, train, evaluate, export
+bash scripts/run_motor.sh  # category drawing: download, train, evaluate, export
 ```
 
 Training uses the GPU when available. Painting first learns pen control, then stroke generation. Weights are generated locally; no pretrained release is available yet.
@@ -41,14 +41,22 @@ Rerun the same command to resume interrupted training. Both diffusion loops redu
 After training has saved a checkpoint:
 
 ```sh
-python app.py --checkpoint runs/diffusion/best.pt --follow-training
+python -m flycasso.app --checkpoint runs/diffusion/best.pt --follow-training
 ```
 
 Open http://localhost:7860. The app has diffusion, pen painting and training tabs.
 
 ## Development
 
-Python entry points stay at the root. `configs/` holds training settings and source pins; `scripts/` holds benchmarks and asset preparation; `web/` contains the app, assets and vendored Three.js; `tests/` contains the checks.
+```text
+flycasso/     Python models, data preparation, training and inference
+scripts/      Training launchers, benchmarks and asset preparation
+configs/      Training settings and pinned data sources
+requirements/ Python dependencies
+web/          Studio UI, assets and vendored Three.js
+tests/        Python and JavaScript checks
+docs/         Model card, references and screenshots
+```
 
 ```sh
 python -m unittest discover -s tests

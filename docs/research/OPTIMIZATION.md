@@ -30,7 +30,7 @@ For scale, EDM's reference training defaults to 200 million image presentations 
 
 ### 2. Teach the drawing model when to lift its pen
 
-In the current 5,000-drawing validation set, only **1.614%** of the 256-point pen states are lifts, averaging 4.13 strokes per drawing. `strokes.py` diffuses absolute X, Y and a continuous ±1 pen flag; the loss averages all three channels. A small aggregate error can hide incorrect stroke boundaries.
+In the current 5,000-drawing validation set, only **1.614%** of the 256-point pen states are lifts, averaging 4.13 strokes per drawing. `flycasso/strokes.py` diffuses absolute X, Y and a continuous ±1 pen flag; the loss averages all three channels. A small aggregate error can hide incorrect stroke boundaries.
 
 Start with separate reporting of coordinate error and pen-lift precision/recall. Then compare a dedicated pen-state classification head, trained from the same noisy sequence, against the current continuous flag. Calibrate its loss and threshold on validation data; blindly weighting rare lifts too heavily could create more fragmentation. This requires adapting training and decoding together, rather than plugging binary logits into the existing Gaussian sampler.
 

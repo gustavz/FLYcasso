@@ -8,8 +8,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from common import digest, read_json, save_torch, seed_all, write_json
-from train import batch, image_data
+from flycasso.common import digest, read_json, save_torch, seed_all, write_json
+from flycasso.train import batch, image_data
 
 
 class Classifier(nn.Module):
@@ -66,11 +66,11 @@ def measure(images, labels, checkpoint="runs/quality/best.pt", classes=None):
 @torch.no_grad()
 def evaluate(checkpoint, out, motor=False, count=30, seed=7919, steps=50, device="auto", evaluator="runs/quality/best.pt"):
     """Inspect fresh samples and paired edge ablations from the exact same weights."""
-    from sample import load_checkpoint, grid, to_images
-    from diffusion import Diffusion
-    from strokes import StrokeDenoiser, decode
-    from train_motor import load_motor
-    from prepare_images import rasterize
+    from flycasso.sample import load_checkpoint, grid, to_images
+    from flycasso.diffusion import Diffusion
+    from flycasso.strokes import StrokeDenoiser, decode
+    from flycasso.train_motor import load_motor
+    from flycasso.prepare_images import rasterize
     if count < 1 or not 0 <= seed < 2**63-count:
         raise ValueError("Use a positive count and a nonnegative 63-bit seed")
     if motor:

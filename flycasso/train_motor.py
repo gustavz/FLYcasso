@@ -1,7 +1,7 @@
 """A separate full-fly motor network; imitation learning from front-leg demonstrations.
 
-python train_motor.py                  # train until held-out pen control passes
-python train_motor.py --resume runs/motor/last.pt
+python -m flycasso.train_motor                  # train until held-out pen control passes
+python -m flycasso.train_motor --resume runs/motor/last.pt
 """
 
 import argparse
@@ -14,8 +14,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from common import Plateau, device_for, digest, load_torch, read_json, save_torch, seed_all, write_json
-from model import FlyDenoiser
+from flycasso.common import Plateau, device_for, digest, load_torch, read_json, save_torch, seed_all, write_json
+from flycasso.model import FlyDenoiser
 
 
 class FlyMotor(FlyDenoiser):
@@ -128,7 +128,7 @@ def train(out="runs/motor", resume=None, steps=None, threads=2, graph="data/proc
     config["drawing_leg"] = "lf"
     config["observations"] = manifest["observations"]
     if config["observations"] != 40:
-        raise ValueError("Rebuild the executed movement dataset with prepare_strokes.py")
+        raise ValueError("Rebuild the executed movement dataset with python -m flycasso.prepare_strokes")
     hashes = dict(graph_sha256=digest(config["graph"]), data_sha256=digest(root / "manifest.json"))
     if state and any(state[k] != value for k, value in hashes.items()):
         raise ValueError("Motor graph or training data changed")
@@ -175,16 +175,16 @@ def train(out="runs/motor", resume=None, steps=None, threads=2, graph="data/proc
     end = step + steps if steps is not None else float("inf")
     write_json(output / "config.json", config)
     write_json(output / "run.json", dict(config=config, **hashes, neurons=model.n_neurons, edges=model.n_edges,
-                task="front_leg_motor_v1", device=str(device), code={p: digest(p) for p in ("train_motor.py", "model.py", "paint.py")}))
+                task="front_leg_motor_v1", device=str(device), code={p: digest(Path(__file__).with_name(p)) for p in ("train_motor.py", "model.py", "paint.py")}))
 
     def checkpoint(name):
         save_torch(output / name, dict(task="front_leg_motor_v1", config=config, step=step,
             model=model.state_dict(), optimizer=optimizer.state_dict(), plateau=plateau.state,
             best_val=best, recovery=recovery, rng=torch.get_rng_state(), **hashes))
 
-    from paint import PaintingFly
+    from flycasso.paint import PaintingFly
     fly = PaintingFly()
-    from prepare_strokes import collect_rollouts
+    from flycasso.prepare_strokes import collect_rollouts
     drawings = read_json(root / "drawings.json")["train"]
     started = time.monotonic(); start_step = step
     print(f"Training independent motor weights through {model.n_neurons} neurons and {model.n_edges} edges", flush=True)
@@ -219,7 +219,7 @@ def train(out="runs/motor", resume=None, steps=None, threads=2, graph="data/proc
                 # The initial checkpoint is available for integration; stopping decisions use regular checks.
                 if step % 250 == 0:
                     plateau.update(tip_error, step, optimizer)
-                    from evaluate_motor import trace_quality
+                    from flycasso.evaluate_motor import trace_quality
                     heldout = read_json(root / "drawings.json")["val"]
                     checks = [trace_quality(model, heldout[i], output / f"checks/{step}/{i}") for i in (0,16,32)]
                     row["physical"] = checks
@@ -257,8 +257,8 @@ def remap_stroke_classes(current, old, names, old_names):
 
 def train_strokes(out, initial, resume=None, steps=None, device_name="auto", threads=2, init_strokes=None, dataset="data/processed/quickdraw-strokes-10", until_convergence=False):
     """Learn category-to-strokes while keeping the trained leg controller fixed."""
-    from strokes import StrokeDenoiser, decode
-    from diffusion import Diffusion
+    from flycasso.strokes import StrokeDenoiser, decode
+    from flycasso.diffusion import Diffusion
     from PIL import Image, ImageDraw
     if resume and init_strokes: raise ValueError("Use --init-strokes only for a new run")
     source = resume or initial
@@ -318,7 +318,7 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
     write_json(output/'config.json',config)
     write_json(output/('resume-environment.json' if resume else 'run.json'),dict(config=config,**hashes,
         stroke_data_sha256=data_hash,initial_checkpoint_sha256=source_checksum,device=str(device),
-        code={name:digest(name) for name in ('train_motor.py','model.py','metal.py','strokes.py','diffusion.py')}))
+        code={name:digest(Path(__file__).with_name(name)) for name in ('train_motor.py','model.py','metal.py','strokes.py','diffusion.py')}))
     def checkpoint(name):
         save_torch(output/name,dict(task="front_leg_motor_v1",config=config,step=step,model=model.state_dict(),
             optimizer=optimizer.state_dict(),stroke_ema=ema,best_val=best,rng=torch.get_rng_state(),stroke_data_sha256=data_hash,
@@ -362,11 +362,11 @@ def train_strokes(out, initial, resume=None, steps=None, device_name="auto", thr
                     try: drawing=decode(sequence)
                     except ValueError: drawing=[]
                     ox=i%columns*256;oy=i//columns*256
-                    from prepare_images import rasterize
+                    from flycasso.prepare_images import rasterize
                     evaluation_images.append(rasterize(drawing))
                     for xs,ys in drawing:pen.line([(ox+16+x/255*224,oy+16+y/255*224) for x,y in zip(xs,ys)],fill="black",width=2)
                 if Path('runs/quality-strokes/best.pt').exists():
-                    from quality import measure
+                    from flycasso.quality import measure
                     row['generation']=measure(torch.from_numpy(np.stack(evaluation_images)).float()/127.5-1,labels,'runs/quality-strokes/best.pt',model.classes)
                 canvas.save(output/'preview.png')
                 (output/'samples').mkdir(exist_ok=True);canvas.save(output/'samples'/f'{step:06d}.png')

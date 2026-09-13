@@ -5,7 +5,7 @@ from pathlib import Path
 import mujoco as mj
 import numpy as np
 from scipy.optimize import least_squares
-from paint import PaintingFly
+from flycasso.paint import PaintingFly
 
 
 def prepare(output="web/assets/grooming.json"):

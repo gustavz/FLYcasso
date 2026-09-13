@@ -8,7 +8,7 @@ import argparse
 import shutil
 from pathlib import Path
 
-from common import digest, load_torch, read_json, save_torch, write_json
+from flycasso.common import ROOT, digest, load_torch, read_json, save_torch, write_json
 
 
 def export(checkpoint, output, graph=None):
@@ -41,12 +41,12 @@ def export(checkpoint, output, graph=None):
     save_torch(output / "model.pt", portable)
     shutil.copyfile(graph, output / "graph.npz")
     for name in ("docs/MODEL_CARD.md", "docs/THIRD_PARTY.md", "LICENSE"):
-        shutil.copyfile(Path(__file__).parent / name, output / Path(name).name)
+        shutil.copyfile(ROOT / name, output / Path(name).name)
     write_json(output / "manifest.json", {
         "training_steps": state["step"], "graph_kind": "synthetic_fixture" if config.get("allow_synthetic") else "malecns_v1",
         "weights": "motor" if motor else "EMA", "source_checkpoint_sha256": checksum,
         "files": {p.name: digest(p) for p in sorted(output.iterdir())},
-        "usage": f"python app.py --checkpoint runs/diffusion/best.pt --motor-checkpoint {output}/model.pt" if motor else f"python app.py --checkpoint {output}/model.pt",
+        "usage": f"python -m flycasso.app --checkpoint runs/diffusion/best.pt --motor-checkpoint {output}/model.pt" if motor else f"python -m flycasso.app --checkpoint {output}/model.pt",
         "quality": "Consult the model card and paired evaluation. Export is not quality certification.",
     })
     print(f"Portable inference files saved to {output}")

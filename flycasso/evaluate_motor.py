@@ -11,9 +11,9 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw
 
-from common import digest, read_json, write_json
-from paint import PaintingFly, drawing_targets
-from train_motor import load_motor
+from flycasso.common import digest, read_json, write_json
+from flycasso.paint import PaintingFly, drawing_targets
+from flycasso.train_motor import load_motor
 
 
 def evaluate(checkpoint="runs/motor/best.pt", out="reports/motor-evaluation", split="val"):
@@ -99,7 +99,7 @@ def trace_quality(net, drawing, out=None):
 
 
 def evaluate_generated(checkpoint, out, category="all", seed=42):
-    from strokes import generate
+    from flycasso.strokes import generate
     net,info=load_motor(checkpoint);results={}
     for name in net.classes if category=="all" else [category]:
         started=time.monotonic();drawing=generate(net,name,seed)

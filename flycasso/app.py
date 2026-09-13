@@ -1,6 +1,6 @@
 """Local image studio. Python stdlib server + one HTML file; no frontend build.
 
-Run: python app.py --checkpoint runs/diffusion/last.pt
+Run: python -m flycasso.app --checkpoint runs/diffusion/last.pt
 Optionally share privately through Tailscale Serve with --allowed-host.
 This is a research app, not a public internet service.
 """
@@ -16,8 +16,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from sample import generate, load_checkpoint, to_images
-from common import load_torch, read_json
+from flycasso.sample import generate, load_checkpoint, to_images
+from flycasso.common import ROOT, load_torch, read_json
 
 
 def encode_images(images):
@@ -31,10 +31,10 @@ def encode_images(images):
 
 def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_training=False, motor_checkpoint=None, checkpoint=None):
     token = secrets.token_urlsafe(32)
-    page = (Path(__file__).parent / "web/studio.html").read_text().replace("__TOKEN__", token).encode()
+    page = (ROOT / "web/studio.html").read_text().replace("__TOKEN__", token).encode()
     # ponytail: one inference at a time; a GPU worker queue only if multi-user serving is needed.
     busy = threading.Lock()
-    root = Path(__file__).parent
+    root = ROOT
     diffusion_path = Path(checkpoint) if checkpoint else root / "runs/diffusion/best.pt"
     motor_path = Path(motor_checkpoint) if motor_checkpoint else root / "runs/motor/best.pt"
     motor_cache = {}
@@ -178,8 +178,8 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
         def paint_stream(self, request):
             import numpy as np
             import torch
-            from paint import PaintingFly, drawing_targets
-            from train_motor import load_motor
+            from flycasso.paint import PaintingFly, drawing_targets
+            from flycasso.train_motor import load_motor
             if not isinstance(request, dict) or set(request) != {"category", "seed"} or not isinstance(request["category"], str):
                 raise ValueError("Expected category and seed")
             if type(request["seed"]) is not int or not 0 <= request["seed"] < 2**63:
@@ -198,7 +198,7 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             fly = PaintingFly()
             try:
                 self.event(dict(type="planning", category=request["category"]))
-                from strokes import generate as generate_strokes
+                from flycasso.strokes import generate as generate_strokes
                 planning_started = time.monotonic()
                 drawing = generate_strokes(motor_cache["model"], request["category"], request["seed"])
                 targets = list(drawing_targets(drawing, fly.home))

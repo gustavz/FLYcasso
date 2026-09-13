@@ -10,6 +10,8 @@ from importlib.metadata import version
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parent.parent
+
 def digest(path, algorithm="sha256"):
     h = hashlib.new(algorithm)
     with Path(path).open("rb") as f:

@@ -1,7 +1,7 @@
 """A single-device training loop: data -> noise -> fly -> loss -> checkpoint.
 
-Run: python train.py --config configs/full.json --out runs/diffusion
-Resume: python train.py --resume runs/diffusion/last.pt
+Run: python -m flycasso.train --config configs/full.json --out runs/diffusion
+Resume: python -m flycasso.train --resume runs/diffusion/last.pt
 """
 
 import argparse
@@ -14,9 +14,9 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from common import Plateau, device_for, digest, environment, load_torch, read_json, save_torch, seed_all, write_json
-from diffusion import Diffusion
-from model import FlyDenoiser
+from flycasso.common import Plateau, device_for, digest, environment, load_torch, read_json, save_torch, seed_all, write_json
+from flycasso.diffusion import Diffusion
+from flycasso.model import FlyDenoiser
 
 
 def validate_config(c):
@@ -255,7 +255,7 @@ def run(config_path=None, out=None, resume=None, device_name="auto", stop_after=
                     result = evaluate_loss(model, diffusion, val_x, val_y, config["batch_size"], config["validation_batches"], weights=ema)
                     row["validation"] = result
                     if not config["allow_synthetic"]:
-                        from sample import grid, to_images
+                        from flycasso.sample import grid, to_images
                         labels=torch.arange(len(model.classes),device=device).repeat_interleave(3)
                         samples,_=diffusion.sample(AveragedModel(model,ema),labels,2026,50)
                         preview=grid(to_images(samples))

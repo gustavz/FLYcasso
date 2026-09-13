@@ -6,7 +6,8 @@ Coordinates are millimetres; brushes are small engineered spheres on the tarsi.
 """
 
 import json
-from pathlib import Path
+
+from flycasso.common import ROOT
 
 import mujoco as mj
 import numpy as np
@@ -174,6 +175,6 @@ def drawing_targets(drawing, home):
 
 if __name__ == "__main__":
     fly = PaintingFly()
-    Path("web/assets").mkdir(exist_ok=True)
-    Path("web/assets/fly-scene.json").write_text(json.dumps(fly.scene(), separators=(",", ":")))
+    (ROOT / "web/assets").mkdir(exist_ok=True)
+    (ROOT / "web/assets/fly-scene.json").write_text(json.dumps(fly.scene(), separators=(",", ":")))
     print("Exported the actual MuJoCo visual meshes to web/assets/fly-scene.json")

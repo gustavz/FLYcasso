@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from common import checked_download, digest, read_json, write_json
+from flycasso.common import ROOT, checked_download, digest, read_json, write_json
 
 CLASSES = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-SOURCES = read_json(Path(__file__).parent / "configs/sources.json")
+SOURCES = read_json(ROOT / "configs/sources.json")
 
 
 def download(root="data/raw", target="all"):

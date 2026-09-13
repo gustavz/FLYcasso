@@ -5,10 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 import torch
-from model import FlyDenoiser
-from common import device_for
-from prepare import fixture
-from metal import MetalSparseMultiply, graph_arrays
+from flycasso.model import FlyDenoiser
+from flycasso.common import device_for
+from flycasso.prepare import fixture
+from flycasso.metal import MetalSparseMultiply, graph_arrays
 
 
 @unittest.skipUnless(torch.backends.mps.is_available(), "Apple GPU unavailable")

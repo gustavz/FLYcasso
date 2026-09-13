@@ -7,10 +7,10 @@ from pathlib import Path
 import torch
 from PIL import Image
 
-from common import device_for, digest, load_torch, seed_all, write_json
-from diffusion import Diffusion
-from model import FlyDenoiser
-from train import validate_config
+from flycasso.common import device_for, digest, load_torch, seed_all, write_json
+from flycasso.diffusion import Diffusion
+from flycasso.model import FlyDenoiser
+from flycasso.train import validate_config
 
 
 def load_checkpoint(checkpoint, graph=None, device="auto", raw=False):

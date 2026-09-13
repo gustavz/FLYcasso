@@ -38,7 +38,7 @@ Exports contain inference weights, the graph, hashes and notices. No reference f
 
 Fresh motor runs start with zero joint corrections and scale the wide readout’s learning rate.
 
-`quality.py` can train a separate recognition evaluator with `--data` and `--out`. Evaluate fresh samples with `--checkpoint`, `--evaluator` and `--out`; add `--motor` for strokes. Evaluators must match the generator’s categories and never guide generation.
+`flycasso/quality.py` can train a separate recognition evaluator with `--data` and `--out`. Evaluate fresh samples with `--checkpoint`, `--evaluator` and `--out`; add `--motor` for strokes. Evaluators must match the generator’s categories and never guide generation.
 
 CPU and Apple Metal are tested; CUDA is untested here. Metal uses float32 CSR kernels and a blocked projection to avoid a PyTorch 2.8 backward reduction error. Physics stays at 10 kHz; animation and ink are recorded at 100 Hz. Cross-device bit identity is not guaranteed.
 

@@ -4,9 +4,9 @@ import argparse
 import json
 from pathlib import Path
 
-from common import digest, write_json
-from sample import load_checkpoint
-from train import evaluate_loss, image_data
+from flycasso.common import digest, write_json
+from flycasso.sample import load_checkpoint
+from flycasso.train import evaluate_loss, image_data
 
 
 def evaluate(checkpoint, graph=None, dataset=None, device="auto", raw=False, split="val", batches=8, batch_size=4):

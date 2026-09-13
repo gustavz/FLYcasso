@@ -6,9 +6,9 @@ import time
 
 import torch
 
-from common import write_json
-from sample import load_checkpoint
-from train_motor import load_motor
+from flycasso.common import write_json
+from flycasso.sample import load_checkpoint
+from flycasso.train_motor import load_motor
 
 
 def benchmark(diffusion_checkpoint, motor_checkpoint, repeats=3):

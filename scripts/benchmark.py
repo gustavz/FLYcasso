@@ -6,9 +6,9 @@ import time
 
 import torch
 
-from common import device_for, digest, environment, read_json, seed_all, write_json
-from model import FlyDenoiser
-from train import validate_config
+from flycasso.common import device_for, digest, environment, read_json, seed_all, write_json
+from flycasso.model import FlyDenoiser
+from flycasso.train import validate_config
 
 
 def benchmark(config, device="auto", repeats=5):

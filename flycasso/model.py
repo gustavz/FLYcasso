@@ -130,7 +130,7 @@ class FlyDenoiser(nn.Module):
             self._buffers.update(graphs)
         self._metal_graphs = None
         if next(self.parameters()).device.type == "mps":
-            from metal import graph_arrays
+            from flycasso.metal import graph_arrays
             self._metal_graphs = tuple(graph_arrays(graph.cpu()) for graph in graphs.values())
         else:
             for name, graph in graphs.items():
@@ -180,7 +180,7 @@ class FlyDenoiser(nn.Module):
             if ablate_edges or step == 0:
                 recurrent = 0
             elif state.device.type == "mps":
-                from metal import MetalSparseMultiply
+                from flycasso.metal import MetalSparseMultiply
                 recurrent = MetalSparseMultiply.apply(state, *self._metal_graphs)
             else:
                 recurrent = FixedSparseMultiply.apply(state, self.w, self.wt)

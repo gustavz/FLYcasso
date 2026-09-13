@@ -16,15 +16,15 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from app import encode_images, make_server
-from common import digest, load_torch, save_torch, write_json
-from diffusion import Diffusion
-from export import export
-from evaluate import evaluate
-from model import FixedSparseMultiply, FlyDenoiser
-from prepare import exact_ids, fixture, index_edges, prepare_connectome
-from sample import generate, load_checkpoint, save_samples, to_images
-from train import run, validate_config
+from flycasso.app import encode_images, make_server
+from flycasso.common import digest, load_torch, save_torch, write_json
+from flycasso.diffusion import Diffusion
+from flycasso.export import export
+from flycasso.evaluate import evaluate
+from flycasso.model import FixedSparseMultiply, FlyDenoiser
+from flycasso.prepare import exact_ids, fixture, index_edges, prepare_connectome
+from flycasso.sample import generate, load_checkpoint, save_samples, to_images
+from flycasso.train import run, validate_config
 
 
 class PipelineTest(unittest.TestCase):
@@ -36,6 +36,7 @@ class PipelineTest(unittest.TestCase):
             launcher.write_text(f"#!{sys.executable}\n" + '''import json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
+if args[:1] == ["-m"]: args = args[1:]
 with Path(os.environ["CALL_LOG"]).open("a") as log:
     log.write(json.dumps(args) + "\\n")
 if args[0] == "-c":
@@ -45,22 +46,23 @@ if args[0] == "-c":
             launcher.chmod(0o755)
             for scenario in ("fresh", "resume", "complete"):
                 folder = root / scenario; folder.mkdir()
+                scripts = folder / "scripts"; scripts.mkdir()
                 for name in ("run.sh", "run_motor.sh"):
-                    shutil.copyfile(Path(__file__).resolve().parents[1] / name, folder / name)
+                    shutil.copyfile(Path(__file__).resolve().parents[1] / "scripts" / name, scripts / name)
                 if scenario != "fresh":
                     for name in ("image run", "motor run", "motor run-control"):
                         run = folder / name; run.mkdir(); (run / "last.pt").touch()
                 log = folder / "calls.jsonl"
                 env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], CALL_LOG=str(log),
                            INCOMPLETE="0" if scenario == "complete" else "1")
-                subprocess.run(["bash", str(folder / "run.sh"), "configs/full.json", "image run"], env=env, check=True)
-                subprocess.run(["bash", str(folder / "run_motor.sh"), "motor run"], env=env, check=True)
+                subprocess.run(["bash", str(scripts / "run.sh"), "configs/full.json", "image run"], env=env, check=True)
+                subprocess.run(["bash", str(scripts / "run_motor.sh"), "motor run"], env=env, check=True)
                 calls = [json.loads(line) for line in log.read_text().splitlines()]
-                training = [args for args in calls if args[0] in ("train.py", "train_motor.py")]
+                training = [args for args in calls if args[0] in ("flycasso.train", "flycasso.train_motor")]
                 self.assertEqual(len(training), {"fresh": 3, "resume": 2, "complete": 0}[scenario])
                 self.assertTrue(all(("--resume" in args) == (scenario == "resume") for args in training))
-                self.assertEqual(sum(args[0] == "export.py" for args in calls), 2)
-                self.assertFalse(any(args[0] == "app.py" for args in calls))
+                self.assertEqual(sum(args[0] == "flycasso.export" for args in calls), 2)
+                self.assertFalse(any(args[0] == "flycasso.app" for args in calls))
 
     def test_end_to_end(self):
         with tempfile.TemporaryDirectory() as directory:

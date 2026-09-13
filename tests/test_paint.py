@@ -7,16 +7,16 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from common import Plateau, digest, load_torch, save_torch, write_json
+from flycasso.common import Plateau, digest, load_torch, save_torch, write_json
 if importlib.util.find_spec("flygym"):
-    from paint import PaintingFly, CANVAS_Z, drawing_targets
-from prepare import fixture
-from strokes import StrokeDenoiser, vectorize, decode
-from train_motor import FlyMotor, FootPosition, validation, remap_stroke_classes, train_strokes
+    from flycasso.paint import PaintingFly, CANVAS_Z, drawing_targets
+from flycasso.prepare import fixture
+from flycasso.strokes import StrokeDenoiser, vectorize, decode
+from flycasso.train_motor import FlyMotor, FootPosition, validation, remap_stroke_classes, train_strokes
 
 
 class PaintingTest(unittest.TestCase):
-    @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements-paint.txt for stroke training checks")
+    @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements/paint.txt for stroke training checks")
     def test_stroke_plateau_resume(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as directory:
@@ -33,7 +33,7 @@ class PaintingTest(unittest.TestCase):
                 files[path.name]=digest(path)
             write_json(data/'manifest.json',dict(classes=config['classes'],files=files))
             out=root/'run'
-            with patch('quality.measure',return_value={}):
+            with patch('flycasso.quality.measure',return_value={}):
                 train_strokes(out,source,steps=1,device_name='cpu',dataset=data,until_convergence=True)
                 state,_=load_torch(out/'last.pt')
                 self.assertEqual(state['stroke_plateau']['min_steps'],30000)
@@ -45,7 +45,7 @@ class PaintingTest(unittest.TestCase):
             self.assertEqual(resumed['step'],2)
             self.assertEqual(resumed['stroke_plateau']['min_steps'],31000)
 
-    @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements-paint.txt for motor physics checks")
+    @unittest.skipUnless(importlib.util.find_spec("flygym"), "Install requirements/paint.txt for motor physics checks")
     def test_stopping_and_motor_physics(self):
         old=torch.tensor([[1.,2.],[3.,4.],[5.,6.]])
         current=torch.zeros(4,2)
@@ -87,7 +87,7 @@ class PaintingTest(unittest.TestCase):
             self.assertGreater(generator.stroke_class.weight.grad.abs().sum().item(),0)
             self.assertEqual(strokes.shape,noisy.shape)
             reference=[[[0,255],[0,255]],[[255,0],[0,255]]]
-            from prepare_images import rasterize
+            from flycasso.prepare_images import rasterize
             raster=rasterize(reference)
             self.assertEqual(raster.shape,(3,32,32))
             self.assertLess(raster.min(),64)

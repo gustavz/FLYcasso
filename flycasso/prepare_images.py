@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-from common import checked_download, digest, read_json, write_json
+from flycasso.common import ROOT, checked_download, digest, read_json, write_json
 
 
 def rasterize(drawing):
@@ -19,7 +19,7 @@ def rasterize(drawing):
 
 def prepare(root="data/processed/quickdraw-10", per_class=10000):
     root = Path(root); root.mkdir(parents=True, exist_ok=True)
-    sources = read_json(Path(__file__).parent / "configs/stroke-sources.json")
+    sources = read_json(ROOT / "configs/stroke-sources.json")
     classes = list(sources)
     if (root/"manifest.json").exists():
         manifest=read_json(root/"manifest.json")
@@ -32,7 +32,7 @@ def prepare(root="data/processed/quickdraw-10", per_class=10000):
     split_labels = {s: [] for s in split_images}
     ids = {s: [] for s in split_images}
     # Reserve the existing motor validation/test drawings from image training as well.
-    from prepare_strokes import split_drawings
+    from flycasso.prepare_strokes import split_drawings
     reserved = split_drawings()
     heldout = {str(d["id"]): split for split in ("val", "test") for d in reserved.get(split, [])}
     rng = np.random.default_rng(1729)

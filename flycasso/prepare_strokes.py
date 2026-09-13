@@ -1,6 +1,6 @@
 """Download pinned Quick, Draw! strokes; make disjoint drawings and IK demonstrations.
 
-python prepare_strokes.py
+python -m flycasso.prepare_strokes
 Human strokes specify foot targets. These are engineered motor demonstrations,
 not recorded fly behavior. Live inference never calls the IK teacher.
 """
@@ -12,12 +12,12 @@ from pathlib import Path
 import mujoco as mj
 import numpy as np
 
-from common import checked_download, digest, read_json, write_json
-from paint import PaintingFly, drawing_targets
+from flycasso.common import ROOT, checked_download, digest, read_json, write_json
+from flycasso.paint import PaintingFly, drawing_targets
 
 
 def split_drawings():
-    specs = read_json(Path(__file__).parent / "configs/stroke-sources.json")
+    specs = read_json(ROOT / "configs/stroke-sources.json")
     rng = np.random.default_rng(1729)
     drawings = {split: [] for split in ("train", "val", "test")}
     for category, spec in specs.items():
@@ -48,7 +48,7 @@ def prepare(root="data/processed/strokes"):
         for name,expected in manifest["files"].items():
             if digest(root/name)!=expected: raise ValueError(f"Corrupt prepared motor data: {name}")
         print(f"Verified existing motor data at {root}",flush=True);return
-    specs=read_json(Path(__file__).parent / "configs/stroke-sources.json")
+    specs=read_json(ROOT / "configs/stroke-sources.json")
     drawings=split_drawings()
     write_json(root / "drawings.json", drawings)
     fly = PaintingFly()
@@ -62,17 +62,17 @@ def prepare(root="data/processed/strokes"):
         path = root / f"{split}.npz"
         np.savez_compressed(path, **arrays)
         files[path.name] = digest(path)
-    Path("web/assets").mkdir(exist_ok=True)
+    (ROOT / "web/assets").mkdir(exist_ok=True)
     fly.reset()
-    Path("web/assets/fly-scene.json").write_text(json.dumps(fly.scene(), separators=(",", ":")))
-    for name, spec in read_json(Path(__file__).parent / "configs/web-sources.json").items():
-        checked_download(Path("web/vendor") / name, spec)
+    (ROOT / "web/assets/fly-scene.json").write_text(json.dumps(fly.scene(), separators=(",", ":")))
+    for name, spec in read_json(ROOT / "configs/web-sources.json").items():
+        checked_download((ROOT / "web/vendor") / name, spec)
     write_json(root / "manifest.json", dict(kind="quickdraw_motor_imitation_v1", drawing_leg="lf", sources=specs,
         drawings={s: len(v) for s, v in drawings.items()}, files=files, seed=1729,
         simulation="FlyGym 2.1.0 / MuJoCo 3.9.0", observations=40, actions=14,
         target="Front joint angle setpoints, normalized around the neutral pose",
         scope="Executed one-leg teacher trajectories, joint velocities, physical pen contact; IK is offline only",
-        code={n: digest(n) for n in ("paint.py", "prepare_strokes.py")}))
+        code={n: digest(Path(__file__).with_name(n)) for n in ("paint.py", "prepare_strokes.py")}))
     print(f"Prepared motor demonstrations at {root}", flush=True)
 
 

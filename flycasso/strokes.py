@@ -7,8 +7,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from common import checked_download, digest, read_json, write_json
-from diffusion import Diffusion
+from flycasso.common import ROOT, checked_download, digest, read_json, write_json
+from flycasso.diffusion import Diffusion
 
 
 def vectorize(drawing, points=256):
@@ -90,7 +90,7 @@ def prepare(root="data/processed/quickdraw-strokes-10", images="data/processed/q
         print(f"Verified existing stroke targets at {root}");return
     ids = read_json(ids_path)
     wanted = {key for values in ids.values() for key in values}
-    rows = {}; sources = read_json(Path(__file__).parent / "configs/stroke-sources.json"); classes = list(sources)
+    rows = {}; sources = read_json(ROOT / "configs/stroke-sources.json"); classes = list(sources)
     for label, category in enumerate(classes):
         path = checked_download(Path("data/raw/quickdraw") / f"{category}.ndjson", sources[category])
         with path.open() as stream:
