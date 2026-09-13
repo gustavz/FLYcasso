@@ -96,6 +96,12 @@ class CircuitTest(unittest.TestCase):
         self.assertIsNot(other.data,fly.data)
         scene=fly.scene();names={g['name'] for g in scene['geoms']}
         self.assertTrue({'nmf/c_head','nmf/lf_tarsus3','nmf/lf_tarsus4','nmf/lf_tarsus5','canvas','nmf/lf_brush'}<=names)
+        for geom in scene['geoms']:
+            if geom['type']==7:
+                self.assertEqual(geom['color'][3],.25 if geom['name'].endswith('_wing') else 1.,geom['name'])
+        for leg in ['LH','LM','RF','RH','RM']:
+            self.assertIn(f'{leg}Tibia_geom',names)
+        self.assertTrue(any('abdomen' in name for name in names))
         for frame in fly.frames:
             self.assertEqual(len(frame['positions']),len(scene['geoms']))
             for _,a,b in frame['ink']:

@@ -1,6 +1,10 @@
 // Run with node tests/test_ui.cjs. Exercises the actual shared reader without a browser.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('web/studio.html','utf8');
+const statusUpdate=fs.readFileSync('web/training.js','utf8').match(/state\.textContent=.*?;/)[0];
+const paused={state:{},status:{status:'paused'},stale:true,last:{step:3400}};
+vm.runInNewContext(statusUpdate,paused);
+assert.equal(paused.state.textContent,'Paused','A paused job stays paused after its logs age');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size,ids.length,'Duplicate element IDs');
 for(const id of ['brain-view','brain-reset','image-results','sound-toggle'])assert(ids.includes(id));

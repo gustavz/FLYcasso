@@ -96,8 +96,13 @@ class MuscleFly:
         names.update({f'LFTarsus{i}_geom_LFTarsus{i}':f'nmf/lf_tarsus{i}' for i in range(1,6)})
         body_names={'Head':'nmf/c_head','Thorax':'nmf/c_thorax','LEye':'nmf/l_eye','REye':'nmf/r_eye','LWing':'nmf/l_wing','RWing':'nmf/r_wing'}
         body_names.update({f'LFTarsus{i}':f'nmf/lf_tarsus{i}' for i in range(1,6)})
+        body_names.update({name:f'nmf/c_abdomen{name[1:]}' for name in ['A1A2','A3','A4','A5','A6']})
         for i,g in enumerate(scene['geoms']):
             g['name']=names.get(g['name'],body_names.get(self.model.body(self.model.geom_bodyid[i]).name,g['name']))
+            # FlyMimic hides anatomy to expose muscles. Restore the external body
+            # in the studio export without changing physics or checkpoint assets.
+            if g['type']==int(mj.mjtGeom.mjGEOM_MESH):
+                g['color'][3]=.25 if g['name'].endswith('_wing') else 1.
             if g['name']=='floor':g['color'][3]=0;g['size']=[0,0,0]
         scene.update(canvas=[self.center[0]-.2,self.center[0]+.2,self.center[1]-.2,self.center[1]+.2],
             canvas_z=self.z,pen_tip=(self.data.site_xpos[self.site]-np.array([0,0,.015])).tolist(),source='FlyMimic muscle-driven LF leg / FlyGym 2.1.0',muscle_driven=True)

@@ -47,7 +47,7 @@ async function update() {
       circuitDetails(task,latest[task].config);
       const {status,metrics}=latest[task],last=metrics.at(-1),state=document.getElementById(`${task}-training-state`);
       const stale=status.updated_at&&Date.now()/1000-status.updated_at>600;
-      state.textContent=status.status==='control_quality_reached'?'Control quality reached':status.status==='validation_plateau'?'Validation plateau':stale?'No recent log update':status.status==='step_limit'?'Step limit reached':last?'Training':'Preparing';
+      state.textContent=status.status==='paused'?'Paused':status.status==='control_quality_reached'?'Control quality reached':status.status==='validation_plateau'?'Validation plateau':stale?'No recent log update':status.status==='step_limit'?'Step limit reached':last?'Training':'Preparing';
       document.getElementById(`${task}-training-detail`).textContent=last?`${task==='motor'?(last.phase==='strokes'?'Category strokes · ':'Pen control · '):''}Step ${last.step.toLocaleString()} · batch loss ${(last.train_loss??last.train_mse).toFixed(5)} · ${last.seconds_per_step.toFixed(1)} s/step · ${last.device==='mps'?'Apple GPU (Metal)':last.device||'CPU'}.`:'No metrics';
       const policy=metrics.findLast(r=>Number.isFinite(r.policy_control_mse));
       if(policy)document.getElementById(`${task}-training-detail`).textContent+=` On-policy control MSE ${policy.policy_control_mse.toFixed(5)}.`;
