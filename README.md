@@ -3,17 +3,17 @@
   <img src="web/assets/flycasso-wordmark.png" alt="FLYcasso" height="100">
 </p>
 
-Two models built around the full MaleCNS fly connectome: image diffusion and one-leg drawing. Both take a category as input. Diffusion learns CIFAR-10 color images; drawing learns Quick, Draw! strokes.
+Two recurrent models built from the full MaleCNS connectome: image diffusion and muscle-driven leg painting. Synaptic gains and neuron dynamics are trained; input and output interfaces are fixed.
+
+| Brain Diffusion | Leg Painting |
+| --- | --- |
+| ![Circuit image architecture](docs/assets/circuit-image-architecture.svg) | ![Circuit muscle architecture](docs/assets/circuit-motor-architecture.svg) |
+
+The screenshots below show the previous models. The new circuits are being trained on this feature branch.
 
 | Brain Diffusion | Leg Painting |
 | --- | --- |
 | ![Completed dog samples](docs/assets/brain-diffusion.png) | ![Completed house drawing](docs/assets/leg-painting.png) |
-
-## Architecture
-
-| Brain Diffusion | Leg Painting |
-| --- | --- |
-| ![Image diffusion architecture](docs/assets/brain-diffusion-architecture.svg) | ![Stroke diffusion and leg control architecture](docs/assets/leg-painting-architecture.svg) |
 
 ## Setup
 
@@ -28,23 +28,25 @@ pip install -r requirements/paint.txt
 ## Train
 
 ```sh
-bash scripts/run.sh        # diffusion: download, train, evaluate, export
-bash scripts/run_motor.sh  # category drawing: download, train, evaluate, export
+bash scripts/run_brain.sh        # download, prepare, train both tasks, evaluate, export
+bash scripts/run_brain.sh image  # image task only
+bash scripts/run_brain.sh motor  # muscle task only
 ```
 
-Training uses the GPU when available. Painting first learns pen control, then stroke generation. Weights are generated locally; no pretrained release is available yet.
+Jobs run sequentially and use the GPU when available. Rerun to resume. Training reduces the learning rate and stops on validation plateaus, with a default limit of 20,000 steps per task. To extend a run: `bash scripts/run_brain.sh image 40000`.
 
-Rerun the same command to resume interrupted training. Both diffusion loops reduce their learning rate and stop on validation plateaus; stroke generation runs at least 30,000 steps. Inference bundles and evaluation results go in each run's `inference/` directory.
+Data: CIFAR-10 and Quick, Draw!. Checkpoints go in `runs/brain-image/` and `runs/brain-motor/`; portable weights and evaluations go in each run’s `inference/` directory. No pretrained release is available yet.
 
 ## App
 
-After training has saved a checkpoint:
-
 ```sh
-python -m flycasso.app --checkpoint runs/diffusion/best.pt --follow-training
+python -m flycasso.app --checkpoint runs/brain-image/best.pt \
+  --motor-checkpoint runs/brain-motor/best.pt --follow-training
 ```
 
-Open http://localhost:7860. The app has diffusion, pen painting and training tabs.
+Open http://localhost:7860 after both tasks have saved a checkpoint.
+
+Architecture and assumptions: [docs/BRAIN_FIRST.md](docs/BRAIN_FIRST.md). The previous models remain available through `scripts/run.sh`, `scripts/run_motor.sh` and their original checkpoint paths.
 
 ## Development
 

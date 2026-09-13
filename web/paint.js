@@ -21,7 +21,7 @@ cameraButtons.forEach(button=>button.onclick=()=>{
 controls.addEventListener('start',()=>cameraButtons.forEach(b=>b.setAttribute('aria-pressed','false')));
 scene.add(new THREE.HemisphereLight(0xffffff,0x4a4c38,2.5));
 const light=new THREE.DirectionalLight(0xffffff,2.5);light.position.set(1,-2,5);scene.add(light);
-let objects=[],queue=[],transition=null,playbackAt=null,initialPose,aborter=null,categories=[],ready=false,motorStep=0,markCount=0;
+let objects=[],queue=[],transition=null,playbackAt=null,initialPose,aborter=null,categories=[],ready=false,motorStep=0,markCount=0,muscleCanvas=null;
 const inkColors=['#86508d'],painting=$('painting-preview');
 const pc=painting.getContext('2d'),surface=document.createElement('canvas');
 surface.width=1024;surface.height=1280;
@@ -94,7 +94,7 @@ function attachPens() {
     const angle=i/48*Math.PI*2,direction=new THREE.Vector3(Math.cos(angle),Math.sin(angle),0).applyQuaternion(hat.quaternion);
     ray.set(center.clone().addScaledVector(direction,2),direction.clone().negate());
     const hit=ray.intersectObject(head,false)[0];
-    const point=hat.worldToLocal(hit.point.clone());point.addScaledVector(new THREE.Vector3(Math.cos(angle),Math.sin(angle),0),.006);rim.push(point);
+    const point=hat.worldToLocal(hit?hit.point.clone():center.clone().addScaledVector(direction,.2));point.addScaledVector(new THREE.Vector3(Math.cos(angle),Math.sin(angle),0),.006);rim.push(point);
   }
   const band=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rim,true),96,.011,8,true),felt);
   band.name='beret-band';hat.add(band);
@@ -150,12 +150,12 @@ function pose(frame) {
   addInk(frame.ink||[]);
 }
 function addInk(marks) {
-  const toPixel=p=>[(.4-p[1])/.8*painting.width,(1.5-p[0])/.8*painting.height];
+  const toPixel=p=>muscleCanvas?[(p[0]-muscleCanvas[0])/(muscleCanvas[1]-muscleCanvas[0])*painting.width,(muscleCanvas[3]-p[1])/(muscleCanvas[3]-muscleCanvas[2])*painting.height]:[(.4-p[1])/.8*painting.width,(1.5-p[0])/.8*painting.height];
   for(const [side,a,b] of marks) {
-    const from=toPixel(a),to=toPixel(b);pc.strokeStyle=pc.fillStyle=inkColors[side];pc.lineWidth=8;pc.lineCap='round';
+    const from=toPixel(a),to=toPixel(b);pc.strokeStyle=pc.fillStyle=inkColors[side];pc.lineWidth=muscleCanvas?painting.width/32:8;pc.lineCap='round';
     pc.beginPath();pc.moveTo(...from);pc.lineTo(...to);pc.stroke();
     // Canvas implementations may discard a zero-length line; stamp the contact explicitly.
-    pc.beginPath();pc.arc(...to,4,0,Math.PI*2);pc.fill();markCount++;
+    pc.beginPath();pc.arc(...to,pc.lineWidth/2,0,Math.PI*2);pc.fill();markCount++;
   }
   if(marks.length)updatePaper();
 }
@@ -184,11 +184,20 @@ renderer.setAnimationLoop(time=>{
 });
 
 async function load() {
-  const [a,b]=await Promise.all([fetch('/assets/fly-scene.json'),fetch('/api/paint-info')]);
+  const body=fetch('/assets/motor-scene.json').then(r=>r.status===404?fetch('/assets/fly-scene.json'):r);
+  const [a,b]=await Promise.all([body,fetch('/api/paint-info')]);
   if(!a.ok||!b.ok)throw Error('Prepare the body assets and stroke dataset first.');
   const data=await a.json(),info=await b.json();
   objects=flyObjects(data);
-  objects.find(o=>o.name==='canvas').geometry.scale(1.25,1,1).translate(.1,0,0);
+  if(data.muscle_driven){
+    muscleCanvas=data.canvas;const [x0,x1,y0,y1]=data.canvas,cx=(x0+x1)/2,cy=(y0+y1)/2,z=data.canvas_z;
+    paper.geometry.dispose();paper.geometry=new THREE.PlaneGeometry(x1-x0,(y1-y0)*1.25);paper.rotation.z=0;
+    paper.position.set(cx,cy+(y1-y0)*.125,z+.002);
+    objects.find(o=>o.name==='canvas').geometry.scale(1,1.25,1).translate(0,(y1-y0)*.125,0);
+    const bounds=new THREE.Box3();objects.forEach(o=>bounds.expandByObject(o));const center=bounds.getCenter(new THREE.Vector3());
+    cameras.orbit=[[center.x+4,center.y-6,center.z+4],center.toArray()];cameras.paper=[[cx+.0001,cy,z+1.5],[cx,cy,z]];cameras.side=[[cx,cy-5,z+1],[cx,cy,z]];
+    camera.position.fromArray(cameras.orbit[0]);controls.target.fromArray(cameras.orbit[1]);controls.maxDistance=20;controls.update();
+  }else objects.find(o=>o.name==='canvas').geometry.scale(1.25,1,1).translate(.1,0,0);
   attachPens();scene.add(...objects);
   initialPose=data;pose(data);clearInk();resize();
   categories=info.classes;categories.forEach(name=>$('drawing').add(new Option(name[0].toUpperCase()+name.slice(1),name)));
@@ -216,7 +225,7 @@ $('motor-controls').onsubmit=async e=>{
         queue.push(...packet.frames);const sim=packet.frames.at(-1).time;
         $('motor-progress').value=packet.progress;
         status.textContent=`Live simulation · ${sim.toFixed(1)} simulated seconds · ${(sim/packet.wall_seconds).toFixed(2)}× real-time speed`;
-        $('motor-measurement').textContent=`Foot-to-target error: ${packet.foot_error_mm.toFixed(3)} mm (latest action).`;
+        $('motor-measurement').textContent=Number.isFinite(packet.foot_error_mm)?`Foot-to-target error: ${packet.foot_error_mm.toFixed(3)} mm (latest action).`:'Muscle control · no reference target';
       }
       if(packet.type==='done'){$('motor-state').textContent='Finishing playback…';status.textContent=`${packet.simulation_seconds.toFixed(1)} simulated seconds in ${packet.wall_seconds.toFixed(1)} seconds.`;}
     });

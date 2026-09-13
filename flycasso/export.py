@@ -13,6 +13,31 @@ from flycasso.common import ROOT, digest, load_torch, read_json, save_torch, wri
 
 def export(checkpoint, output, graph=None):
     state, checksum = load_torch(checkpoint)
+    if state.get('format')=='brain-first-v1':
+        output=Path(output)
+        if (output/'manifest.json').exists():
+            manifest=read_json(output/'manifest.json')
+            if manifest['source_checkpoint_sha256']==checksum and all(digest(output/name)==sha for name,sha in manifest['files'].items()):
+                print(f'Verified existing inference files at {output}');return
+            raise ValueError('Export differs or is corrupt; choose a new export directory')
+        if output.exists():raise ValueError('Choose a new export directory')
+        config=dict(state['config']);artifacts={k:Path(config[k]) for k in ['graph','ports']}
+        for k,path in artifacts.items():
+            if not path.is_absolute() and (Path(checkpoint).parent/path).exists():artifacts[k]=Path(checkpoint).parent/path
+        for k,path in artifacts.items():
+            if digest(path)!=state['hashes'][k]:raise ValueError(f'Changed {k}')
+        output.mkdir(parents=True)
+        for k,path in artifacts.items():
+            config[k]=k+'.npz';shutil.copyfile(path,output/config[k])
+        config['dataset']='data/processed/'+Path(config['dataset']).name
+        portable={k:state[k] for k in ['format','hashes','step','ema']}
+        portable.update(config=config,inference_only=True)
+        save_torch(output/'model.pt',portable);write_json(output/'config.json',config)
+        for name in ['docs/BRAIN_FIRST.md','docs/THIRD_PARTY.md','LICENSE']:
+            shutil.copyfile(ROOT/name,output/Path(name).name)
+        write_json(output/'manifest.json',dict(source_checkpoint_sha256=checksum,training_steps=state['step'],
+            files={p.name:digest(p) for p in output.iterdir()}))
+        print(f'Exported circuit-first inference weights to {output}');return
     local_graph = Path(checkpoint).parent / "graph.npz"
     graph = Path(graph) if graph else local_graph if local_graph.exists() else Path(state["config"]["graph"])
     if digest(graph) != state["graph_sha256"]:

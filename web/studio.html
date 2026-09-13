@@ -425,7 +425,7 @@
   function modelInfo(info){$('model-info').textContent=`${info.neurons.toLocaleString()} neurons · ${info.edges.toLocaleString()} connections · training step ${info.training_step.toLocaleString()} · ${info.device==='mps'?'Apple GPU (Metal)':info.device}`;}
   fetch('/api/info').then(async r=>{if(!r.ok)throw Error('Could not load the checkpoint.');return r.json();}).then(info=>{
     for(const name of info.classes)$('category').add(new Option(name[0].toUpperCase()+name.slice(1),name));
-    $('category').value='cat';$('category').disabled=false;$('steps').max=info.diffusion_steps;$('steps').value=Math.min(50,info.diffusion_steps);modelInfo(info);
+    $('category').value='cat';$('category').disabled=false;$('steps').max=info.diffusion_steps;$('steps').value=Math.min(info.config.task==='image'?info.config.steps:50,info.diffusion_steps);modelInfo(info);
     if(info.graph_kind!=='malecns_v1')status('Synthetic test network — software check only.');
     $('paint').disabled=false;$('paint').textContent='Create images';
   }).catch(e=>status(e.message,true));

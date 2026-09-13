@@ -27,6 +27,15 @@ kernel void csr_mm(device const int* ptr, device const int* idx,
         sum += simd_shuffle_down(sum, offset);
     if (lane < width && col < columns) out[row * columns + col] = sum;
 }
+kernel void edge_grad(device const float* x, device const float* grad,
+                      device const int* rows, device const int* idx,
+                      device float* out, constant uint& columns,
+                      uint edge [[thread_position_in_grid]]) {
+    float value = 0;
+    for (uint col=0; col<columns; ++col)
+        value += grad[rows[edge]*columns+col] * x[idx[edge]*columns+col];
+    out[edge] = value;
+}
 ''')
 
 
@@ -46,6 +55,13 @@ def multiply(x, ptr, idx, values):
     width = min(32, 2**(x.shape[1]-1).bit_length())
     kernels().csr_mm(ptr, idx, values, x, out, x.shape[1], width,
                      threads=((len(ptr)-1)*32, (x.shape[1]+width-1)//width), group_size=(32, 1))
+    return out
+
+
+def edge_gradient(x, grad, rows, idx):
+    out = torch.empty(len(idx), dtype=x.dtype, device=x.device)
+    kernels().edge_grad(x.contiguous(), grad.contiguous(), rows, idx, out, x.shape[1],
+                        threads=len(idx), group_size=256)
     return out
 
 

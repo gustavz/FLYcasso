@@ -16,6 +16,14 @@ from flycasso.train import validate_config
 def load_checkpoint(checkpoint, graph=None, device="auto", raw=False):
     checkpoint = Path(checkpoint)
     state, checksum = load_torch(checkpoint)
+    if state.get('format')=='brain-first-v1':
+        from flycasso.train_brain import load
+        del state
+        model,state=load(checkpoint,device,raw,graph)
+        if model.task!='image':raise ValueError('Select an image checkpoint')
+        return model,RecurrentSampler(),dict(checkpoint_sha256=state['checkpoint_sha256'],graph_sha256=state['hashes']['graph'],
+            data_manifest_sha256=state['hashes']['data'],training_step=state['step'],weights='raw' if raw and not state.get('inference_only') else 'ema',config=state['config'],
+            neurons=model.n_neurons,edges=model.n_edges,graph_kind=model.core.metadata['kind'],device=str(next(model.parameters()).device))
     if state.get("format_version") != 2:
         raise ValueError("Unsupported checkpoint format")
     config = state["config"]
@@ -34,6 +42,12 @@ def load_checkpoint(checkpoint, graph=None, device="auto", raw=False):
             "neurons": model.n_neurons, "edges": model.n_edges,
             "graph_kind": model.graph_metadata["kind"], "device": str(device)}
     return model, Diffusion(config["diffusion_steps"], device), info
+
+
+class RecurrentSampler:
+    steps=1000
+    def sample(self,model,labels,seed,sample_steps=16,ablate_edges=False,on_step=None):
+        return model.sample(labels,seed,sample_steps,ablate=ablate_edges,on_step=on_step)
 
 
 def to_images(batch):

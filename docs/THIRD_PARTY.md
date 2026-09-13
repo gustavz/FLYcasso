@@ -35,6 +35,12 @@ The sampler uses clean-image (`x0`) prediction, also supported as `prediction_ty
 - **MuJoCo 3.9.0**: [google-deepmind/mujoco](https://github.com/google-deepmind/mujoco), Apache-2.0, installed as a dependency for physical dynamics.
 - **Three.js 0.180.0**: [mrdoob/three.js](https://github.com/mrdoob/three.js), MIT. Unmodified module/core/OrbitControls files are vendored with `web/vendor/THREE-LICENSE.txt`; exact hashes are in `configs/web-sources.json`.
 
+## Muscle-driven body
+
+- [FlyMimic](https://github.com/gizemozd/FlyMimic), loaded through FlyGym 2.1.0: 15 Hill-type muscle actuators and passive joint properties for the left-front leg. The bundled `best_combined_arm_damping_stiff_cvt3.xml` declares Apache-2.0 and credits [MyoConverter](https://github.com/MyoHub/myoconverter) for model conversion.
+- Body meshes are fetched by FlyGym’s asset loader (`neuromechfly_musculoskeletal_meshes_20260623a`); they are not vendored in this repository. The initial joint pose comes from FlyGym’s packaged muscle-imitation motion recording.
+- FLYcasso adds one pen contact and a canvas. The body is tethered; collision handling is restricted to the pen and paper. Anatomical motor-neuron groups are mapped to muscle groups; individual muscle-head innervation and proprioceptive tuning are approximations.
+
 ## Brand illustration
 
 `web/assets/flycasso-flies.png` was generated with the built-in OpenAI image tool on 12 September 2026, using the user's Picasso portrait as a style reference. Brief: two original cubist flies, heavy black contours, flat red/yellow/green/periwinkle planes; one with a black beret and pencil, the other with an electrode cap. Background cleanup removed the generated checkerboard and produced a transparent PNG. The reference portrait is not bundled. `web/assets/flycasso-wordmark.png` is generated FLYcasso lettering inspired by the user’s Picasso signature reference; it is not a font file. The signature reference is not bundled.

@@ -37,6 +37,8 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
     root = ROOT
     diffusion_path = Path(checkpoint) if checkpoint else root / "runs/diffusion/best.pt"
     motor_path = Path(motor_checkpoint) if motor_checkpoint else root / "runs/motor/best.pt"
+    if motor_checkpoint and not (motor_path.parent/'config.json').exists():
+        raise ValueError('The motor checkpoint needs its adjacent config.json; start training or use an exported bundle')
     motor_cache = {}
     diffusion_stamp = None
 
@@ -46,7 +48,7 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
         if follow_training and path.exists() and path.stat().st_mtime_ns != diffusion_stamp:
             stamp = path.stat().st_mtime_ns
             state, checksum = load_torch(path)
-            if state["graph_sha256"] != info["graph_sha256"]:
+            if state.get("graph_sha256",state.get('hashes',{}).get('graph')) != info["graph_sha256"]:
                 raise ValueError("New image checkpoint uses a different graph")
             if state["config"] != info["config"]:
                 model, diffusion, refreshed = load_checkpoint(path, device=str(next(model.parameters()).device))
@@ -131,8 +133,8 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             if self.path == "/api/training":
                 result = {}
                 for task in ("diffusion", "motor"):
-                    folder = root / "runs" / task
-                    if task == "motor" and not folder.exists(): folder = root / "runs/motor-control"
+                    folder = diffusion_path.parent if task=='diffusion' else motor_path.parent
+                    if task == "motor" and motor_checkpoint is None and not folder.exists(): folder = root / "runs/motor-control"
                     rows = []
                     metrics = folder / "metrics.jsonl"
                     if metrics.exists():
@@ -143,19 +145,29 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
                                 pass  # A writer may be halfway through the latest line.
                     status = read_json(folder / "status.json") if (folder / "status.json").exists() else {}
                     rows = sorted({r["step"]: r for r in rows}.values(), key=lambda r: r["step"])
-                    result[task] = dict(status=status, metrics=rows[-3000:])
+                    config = read_json(folder / 'config.json') if (folder / 'config.json').exists() else {}
+                    provenance = read_json(folder / 'provenance.json') if (folder / 'provenance.json').exists() else {}
+                    for row in rows:
+                        row.setdefault('device', info['device'])
+                    result[task] = dict(status=status, metrics=rows[-3000:], config=config, provenance=provenance)
                     control = root / "runs/motor-control/status.json"
-                    if task == "motor" and control.exists(): result[task]["control"] = read_json(control)
+                    if task == "motor" and not config.get("task") and control.exists(): result[task]["control"] = read_json(control)
                 return self.reply(200, result)
             if self.path == "/api/paint-info":
                 config_path = motor_path.parent / "config.json"
                 config = read_json(config_path) if config_path.exists() else {}
                 return self.reply(200, dict(classes=config.get("classes", ["cat","flower","butterfly"]),
-                    checkpoint_ready=motor_path.exists() and config.get("phase")=="strokes",
-                    description="Category-generated strokes and learned one-leg control"))
+                    checkpoint_ready=motor_path.exists() and (config.get("phase")=="strokes" or config.get('task')=='motor'),
+                    muscle_driven=config.get('task')=='motor',description="Category-conditioned one-leg control"))
+            if self.path=='/assets/motor-scene.json':
+                config_path=motor_path.parent/'config.json'
+                if config_path.exists() and read_json(config_path).get('task')=='motor':
+                    from flycasso.muscle import MuscleFly
+                    return self.reply(200,MuscleFly().scene())
+                return self.reply(200,(root/'web/assets/fly-scene.json').read_bytes(),'application/json')
             if self.path.split("?",1)[0] in ("/diffusion-preview.png", "/motor-preview.png"):
                 task=self.path.split("-",1)[0][1:]
-                path=root/"runs"/task/"preview.png"
+                path=(diffusion_path.parent if task=='diffusion' else motor_path.parent)/'preview.png'
                 if path.exists(): return self.reply(200,path.read_bytes(),"image/png")
                 return self.reply(404,{"error":"No evaluated samples yet"})
             assets = {"/assets/flycasso-wordmark.png": (root / "web/assets/flycasso-wordmark.png", "image/png"),
@@ -165,6 +177,9 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
                       "/brain.js": (root / "web/brain.js", "text/javascript"),
                       "/fly-body.js": (root / "web/fly-body.js", "text/javascript"),
                       "/training.js": (root / "web/training.js", "text/javascript")}
+            for task in ("image", "motor"):
+                name=f"circuit-{task}-architecture.svg"
+                assets["/assets/"+name]=(root/"docs/assets"/name,"image/svg+xml")
             for name in ("three.module.js", "three.core.js", "OrbitControls.js"):
                 assets["/assets/" + name] = (root / "web/vendor" / name, "text/javascript")
             for name in ("fly-scene.json", "grooming.json"):
@@ -187,6 +202,9 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             path = motor_path
             if not path.exists():
                 return self.reply(503, {"error": "The motor model is training its first checkpoint. Try again shortly."})
+            config_path=path.parent/'config.json'
+            if config_path.exists() and read_json(config_path).get('task')=='motor':
+                return self.muscle_stream(request)
             stamp = path.stat().st_mtime_ns
             if motor_cache.get("stamp") != stamp:
                 net, metadata = load_motor(path, device=str(next(model.parameters()).device))
@@ -219,6 +237,33 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             except Exception as error:
                 self.log_error("Painting failed: %s", error)
                 self.fail(500, "Painting stopped because the simulation failed.")
+
+        def muscle_stream(self, request):
+            import numpy as np
+            import torch
+            from flycasso.train_brain import load
+            from flycasso.muscle import MuscleFly
+            stamp=motor_path.stat().st_mtime_ns
+            if motor_cache.get('stamp')!=stamp:
+                net,state=load(motor_path,str(next(model.parameters()).device))
+                if net.task!='motor':raise ValueError('Select a muscle-control checkpoint')
+                motor_cache.update(model=net,state={'step':state['step']},stamp=stamp)
+            net=motor_cache['model'];state=motor_cache['state'];device=next(net.parameters()).device
+            if request['category'] not in net.classes:raise ValueError('Unknown category')
+            fly=MuscleFly();hidden=None;started=time.monotonic();steps=256
+            label=torch.tensor([net.classes.index(request['category'])],device=device)
+            cue=torch.tensor(np.random.default_rng(request['seed']).normal(size=(1,3)),dtype=torch.float32,device=device).tanh()
+            self.event(dict(type='start',training_step=state['step'],neurons=net.n_neurons,device=str(device),muscle_driven=True))
+            with torch.inference_mode():
+                coefficients=net.core.coefficients()
+                for i in range(steps):
+                    im,pr=fly.observe()
+                    action,hidden=net(torch.from_numpy(im)[None].to(device),label,torch.tensor([i/(steps-1)],device=device),
+                        cue,hidden,torch.from_numpy(pr)[None].to(device),coefficients=coefficients)
+                    fly.step(action[0].cpu().numpy(),record=True)
+                    self.event(dict(type='frames',frames=fly.frames,progress=(i+1)/steps,foot_error_mm=None,
+                        wall_seconds=time.monotonic()-started))
+            self.event(dict(type='done',simulation_seconds=float(fly.data.time),wall_seconds=time.monotonic()-started))
 
         def do_POST(self):
             if not self.local_request() or not secrets.compare_digest(self.headers.get("X-Flycasso-Token", ""), token):

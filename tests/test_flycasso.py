@@ -47,21 +47,22 @@ if args[0] == "-c":
             for scenario in ("fresh", "resume", "complete"):
                 folder = root / scenario; folder.mkdir()
                 scripts = folder / "scripts"; scripts.mkdir()
-                for name in ("run.sh", "run_motor.sh"):
+                for name in ("run.sh", "run_motor.sh", "run_brain.sh"):
                     shutil.copyfile(Path(__file__).resolve().parents[1] / "scripts" / name, scripts / name)
                 if scenario != "fresh":
-                    for name in ("image run", "motor run", "motor run-control"):
-                        run = folder / name; run.mkdir(); (run / "last.pt").touch()
+                    for name in ("image run", "motor run", "motor run-control", "runs/brain-image", "runs/brain-motor"):
+                        run = folder / name; run.mkdir(parents=True); (run / "last.pt").touch()
                 log = folder / "calls.jsonl"
                 env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], CALL_LOG=str(log),
                            INCOMPLETE="0" if scenario == "complete" else "1")
                 subprocess.run(["bash", str(scripts / "run.sh"), "configs/full.json", "image run"], env=env, check=True)
                 subprocess.run(["bash", str(scripts / "run_motor.sh"), "motor run"], env=env, check=True)
+                subprocess.run(["bash", str(scripts / "run_brain.sh")], env=env, check=True)
                 calls = [json.loads(line) for line in log.read_text().splitlines()]
-                training = [args for args in calls if args[0] in ("flycasso.train", "flycasso.train_motor")]
-                self.assertEqual(len(training), {"fresh": 3, "resume": 2, "complete": 0}[scenario])
+                training = [args for args in calls if args[0] in ("flycasso.train", "flycasso.train_motor", "flycasso.train_brain", "flycasso.train_muscle") and "--prepare" not in args]
+                self.assertEqual(len(training), {"fresh": 5, "resume": 4, "complete": 0}[scenario])
                 self.assertTrue(all(("--resume" in args) == (scenario == "resume") for args in training))
-                self.assertEqual(sum(args[0] == "flycasso.export" for args in calls), 2)
+                self.assertEqual(sum(args[0] == "flycasso.export" for args in calls), 4)
                 self.assertFalse(any(args[0] == "flycasso.app" for args in calls))
 
     def test_end_to_end(self):

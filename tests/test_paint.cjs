@@ -16,7 +16,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
     document:{createElement:()=>element('canvas-surface'),getElementById:element,querySelectorAll:()=>[],querySelector:()=>({content:'token'}),hidden:false},
     window:{flyAudio:{start:m=>sounds.push(['start',m]),stop:m=>sounds.push(['stop',m]),pencil:f=>sounds.push(['pencil',f.pen_down])},addEventListener:(type,fn)=>listeners[type]=fn,readFlyStream:async(response,receive)=>{for(const packet of packets)receive(packet);}},
     devicePixelRatio:1,matchMedia:()=>({matches:false}),ResizeObserver:class{constructor(fn){this.fn=fn;}observe(){this.fn();}},
-    fetch:async (url,options)=>{if(options?.body)requests.push(JSON.parse(options.body));return {ok:true,json:async()=>url.includes('fly-scene')?data:{classes:["cat","flower","butterfly"],checkpoint_ready:true}};},
+    fetch:async (url,options)=>{if(options?.body)requests.push(JSON.parse(options.body));return {ok:true,json:async()=>url.includes('motor-scene')?data:{classes:["cat","flower","butterfly"],checkpoint_ready:true}};},
     Image:class{set src(value){this.srcValue=value;this.complete=true;this.naturalWidth=2169;queueMicrotask(()=>this.onload());}},
     Option:class{constructor(text,value){this.value=value;}},AbortController,DOMException,setTimeout,console};
   vm.runInNewContext(fs.readFileSync('web/paint.js','utf8').replace(/^import .*;$/mg,''),context);
@@ -88,5 +88,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
   await run([]);assert.equal(inkCalls.length,0,'Lifted pens cannot invent ink');
   assert.equal(element('motor-state').textContent,'Finished · no pen contact');
   await run([[0,[1.1,0,.152],[1.2,.1,.152]]],true);assert.equal(inkCalls.filter(x=>x[0]==='dot').length,1,'Stopping preserves received ink awaiting playback');assert.equal(element('motor-state').textContent,'Stopped');
+  // A new canvas calibration must survive starting and clearing an episode.
+  vm.runInNewContext('muscleCanvas=[2,3,4,5];clearInk();addInk([[0,[2.5,4.5,.152],[2.5,4.5,.152]]]);',context);
+  assert(Math.abs(inkCalls.at(-2)[1]-512)<1e-6&&Math.abs(inkCalls.at(-2)[2]-512)<1e-6,'Muscle canvas calibration survives clear');
   console.log('Pen attachment, paper texture orientation, streamed dots/strokes and no-contact status passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
