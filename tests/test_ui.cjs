@@ -5,6 +5,11 @@ const statusUpdate=fs.readFileSync('web/training.js','utf8').match(/state\.textC
 const paused={state:{},status:{status:'paused'},stale:true,last:{step:3400}};
 vm.runInNewContext(statusUpdate,paused);
 assert.equal(paused.state.textContent,'Paused','A paused job stays paused after its logs age');
+const dots=[],plotContext=new Proxy({measureText:()=>({width:30})},{get:(o,k)=>k in o?o[k]:k==='arc'?()=>dots.push(o.fillStyle):()=>{}});
+const charts={window:{addEventListener(){}},devicePixelRatio:1,document:{getElementById:()=>({getBoundingClientRect:()=>({width:500}),getContext:()=>plotContext})}};
+vm.runInNewContext(fs.readFileSync('web/training.js','utf8').replace(/update\(\);setInterval\(update,15000\);/,''),charts);
+charts.plot('motor',[{step:1,train_mse:.003,validation_mse:.08,policy_control_mse:.002}]);
+assert.deepEqual(dots,['#b22319','#39723c'],'Both held-out state distributions are plotted separately');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size,ids.length,'Duplicate element IDs');
 for(const id of ['brain-view','brain-reset','image-results','sound-toggle'])assert(ids.includes(id));

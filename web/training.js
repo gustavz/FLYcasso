@@ -10,7 +10,7 @@ function circuitDetails(task, config) {
     img.alt=`Circuit-first ${config.task} architecture`;img.style.width='100%';diagram.replaceChildren(img);diagram.dataset.circuit='true';
   }
   text('samples',task==='motor'?'Free-running house · fixed cue 0.1, 0.2, 0.3':'10 classes · seed 42');
-  text('loss',task==='motor'?'Muscle activation MSE · held-out demonstrations · EMA':'Image MSE across recurrent denoising sequence · EMA');
+  text('loss',task==='motor'?'Muscle MSE · blue: training states · green: held-out policy states · red: held-out demonstration states · validation uses EMA':'Image MSE across recurrent denoising sequence · EMA');
   text('checkpoint',`AdamW · initial LR ${config.lr} · batch ${config.batch} · EMA 0.999 · gradient clipping 1`);
   text('execution',task==='motor'?'15 painting muscles · 24 additional circuit-driven joints · tethered body · 50 Hz commands · 10 kHz physics':`${config.steps} DDIM steps · ${config.ticks} neural updates per step · persistent state`);
   if(task==='motor') {
@@ -30,7 +30,8 @@ function plot(task, rows) {
   if(!rows.length) {c.fillStyle='#62544b';c.fillText('No metrics',p.l,60);return;}
   const validation=rows.filter(r=>r.validation||Number.isFinite(r.validation_mse)).map(r=>({step:r.step,loss:r.validation_mse??r.validation?.clean_image_mse??r.validation?.stroke_mse??r.validation?.joint_mse}));
   const training=rows.map(r=>({step:r.step,loss:r.joint_loss??r.unweighted_mse??r.train_mse})).filter(r=>Number.isFinite(r.loss));
-  const all=[...training.map(r=>r.loss),...validation.map(r=>r.loss)].filter(Number.isFinite);
+  const policy=rows.filter(r=>Number.isFinite(r.policy_control_mse)).map(r=>({step:r.step,loss:r.policy_control_mse}));
+  const all=[...training.map(r=>r.loss),...validation.map(r=>r.loss),...policy.map(r=>r.loss)].filter(Number.isFinite);
   if(!all.length)return;
   const min=Math.max(0,Math.min(...all)*.8),max=Math.max(...all)*1.05||1,first=rows[0].step,last=Math.max(first+1,rows.at(-1).step);
   const x=s=>p.l+(s-first)/(last-first)*(w-p.l-p.r),y=v=>h-p.b-(v-min)/(max-min)*(h-p.t-p.b);
@@ -38,6 +39,7 @@ function plot(task, rows) {
   for(let i=0;i<4;i++) {const v=min+(max-min)*i/3,yy=y(v);c.strokeStyle='#c7afa0';c.beginPath();c.moveTo(p.l,yy);c.lineTo(w-p.r,yy);c.stroke();c.fillStyle='#62544b';c.fillText(v.toFixed(3),0,yy+4);}
   c.strokeStyle='#355889';c.lineWidth=1.7;c.beginPath();training.forEach((r,i)=>i?c.lineTo(x(r.step),y(r.loss)):c.moveTo(x(r.step),y(r.loss)));c.stroke();
   c.fillStyle='#b22319';for(const r of validation) {c.beginPath();c.arc(x(r.step),y(r.loss),4,0,2*Math.PI);c.fill();}
+  c.fillStyle='#39723c';for(const r of policy) {c.beginPath();c.arc(x(r.step),y(r.loss),3,0,2*Math.PI);c.fill();}
   c.fillStyle='#62544b';c.fillText(`Step ${first}`,p.l,h-5);const label=`Step ${last}`;c.fillText(label,w-p.r-c.measureText(label).width,h-5);
 }
 async function update() {
