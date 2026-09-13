@@ -5,6 +5,8 @@
 
 Two models built around the full MaleCNS fly connectome: image diffusion and one-leg drawing. Both take a category as input. Diffusion learns CIFAR-10 color images; drawing learns Quick, Draw! strokes.
 
+https://github.com/user-attachments/assets/c265be56-fa28-42f1-8194-df6589c46794
+
 | Brain Diffusion | Leg Painting |
 | --- | --- |
 | ![Completed dog samples](docs/assets/brain-diffusion.png) | ![Completed house drawing](docs/assets/leg-painting.png) |
