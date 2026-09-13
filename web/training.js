@@ -5,9 +5,10 @@ function circuitDetails(task, config) {
   const column=document.querySelector(`.${task==='motor'?'motor':'diffusion'}-model`);
   const text=(row,value)=>{column.querySelector(`[data-row="${row}"] p:last-child`).textContent=value;};
   const diagram=column.querySelector('.diagram-scroll');
-  if(!diagram.dataset.circuit){
-    const img=document.createElement('img');img.src=`/assets/circuit-${config.task}-architecture.svg`;
-    img.alt=`Circuit-first ${config.task} architecture`;img.style.width='100%';diagram.replaceChildren(img);diagram.dataset.circuit='true';
+  const calibrated=config.recipe==='calibrated-v1';
+  if(diagram.dataset.circuit!==(calibrated?'calibrated':'legacy')){
+    const img=document.createElement('img');img.src=`/assets/${calibrated?'calibrated':'circuit'}-${config.task}-architecture.svg`;
+    img.alt=`Circuit-first ${config.task} architecture`;img.style.width='100%';diagram.replaceChildren(img);diagram.dataset.circuit=calibrated?'calibrated':'legacy';
   }
   text('samples',task==='motor'?'Free-running house · fixed cue 0.1, 0.2, 0.3':'10 classes · seed 42');
   text('loss',task==='motor'?'Muscle MSE · blue: training states · green: held-out policy states · red: held-out demonstration states · validation uses EMA':'Image MSE across recurrent denoising sequence · EMA');
@@ -18,8 +19,15 @@ function circuitDetails(task, config) {
     descriptions[2].textContent='320 training · 80 validation · 80 test muscle demonstrations';
     document.getElementById('motor-measurement').textContent='Only painting is supervised. Other body joints use fixed motor-pool readouts, without sensory feedback or body collisions. Non-leg axes and gains are approximations.';
   }
+  if(calibrated){
+    text('samples',`Curriculum: ${config.stage_name} · EMA checkpoint`);
+    text('loss',task==='motor'?'Muscle imitation + physical-reward actor–critic + value loss + posterior KL; chart: muscle MSE on executed states':'Uniform x₀ MSE · 10% class dropout · generated-state exposure up to 50%');
+    text('checkpoint',`AdamW · initial LR ${config.lr} · batch ${config.batch} · EMA 0.99 · gradient clipping 1`);
+    if(task==='motor')column.querySelectorAll('[data-row="data"] dd')[2].textContent='Primitive motion → one sketch → up to 1,000 training sketches per category; held-out strokes for validation';
+  }
   const notes=document.querySelector('.model-notes dl');
   notes.innerHTML='<dt>Graph</dt><dd>MaleCNS · 166,700 neurons · 25,582,938 directed edges</dd><dt>Circuit-first dynamics</dt><dd>Learned edge gains, neuron biases and leak rates · fixed anatomical topology and signs · persistent state</dd><dt>Interfaces</dt><dd>Fixed sensory and task-cue electrodes and output pooling · zero learned adapter parameters</dd><dt>Stopping</dt><dd>Held-out error plateau · three learning-rate reductions · minimum 1,000 optimizer steps</dd><dt>Mapping limits</dt><dd>Rate dynamics, RGB electrodes, sensory tuning and muscle-head pooling are engineered approximations.</dd>';
+  if(calibrated)notes.innerHTML='<dt>Graph</dt><dd>166,700 neurons · 25,582,938 edges · 3,868,258 shared cell-type-pair gains</dd><dt>Interfaces</dt><dd>Learned local electrode calibration; fixed anatomical port locations. Image: 311 adapter parameters. Motor: 328.</dd><dt>Training</dt><dd>Persistent neural state · eight neural ticks per action or denoising step · regularization · EMA · gradient clipping</dd><dt>Curriculum gates</dt><dd>Three consecutive passing checks. Pen position/contact or generated-image quality determine progress and checkpoint selection. Forty-eight checks without improvement stop for review.</dd><dt>Mapping</dt><dd>Engineered rate dynamics, electrodes and motor pooling. Peripheral movement has no additional task reward.</dd>';
 }
 function plot(task, rows) {
   const canvas=document.getElementById(`${task}-curve`), rect=canvas.getBoundingClientRect();
@@ -49,8 +57,9 @@ async function update() {
       circuitDetails(task,latest[task].config);
       const {status,metrics}=latest[task],last=metrics.at(-1),state=document.getElementById(`${task}-training-state`);
       const stale=status.updated_at&&Date.now()/1000-status.updated_at>600;
-      state.textContent=status.status==='paused'?'Paused':status.status==='control_quality_reached'?'Control quality reached':status.status==='validation_plateau'?'Validation plateau':stale?'No recent log update':status.status==='step_limit'?'Step limit reached':last?'Training':'Preparing';
+      state.textContent=status.status==='queued'?'Waiting for GPU':status.status==='needs_review'?'Quality gate stalled':status.status==='curriculum_complete'?'Curriculum complete':status.status==='paused'?'Paused':status.status==='control_quality_reached'?'Control quality reached':status.status==='validation_plateau'?'Validation plateau':stale?'No recent log update':status.status==='step_limit'?'Step limit reached':last?'Training':'Preparing';
       document.getElementById(`${task}-training-detail`).textContent=last?`${task==='motor'?(last.phase==='strokes'?'Category strokes · ':'Pen control · '):''}Step ${last.step.toLocaleString()} · batch loss ${(last.train_loss??last.train_mse).toFixed(5)} · ${last.seconds_per_step.toFixed(1)} s/step · ${last.device==='mps'?'Apple GPU (Metal)':last.device||'CPU'}.`:'No metrics';
+      if(status.stage_name)document.getElementById(`${task}-training-detail`).textContent+=` Stage: ${status.stage_name}.`;
       const policy=metrics.findLast(r=>Number.isFinite(r.policy_control_mse));
       if(policy)document.getElementById(`${task}-training-detail`).textContent+=` On-policy control MSE ${policy.policy_control_mse.toFixed(5)}.`;
       const physical=metrics.findLast(r=>r.physical)?.physical??latest[task].control?.physical;

@@ -3,13 +3,13 @@
   <img src="web/assets/flycasso-wordmark.png" alt="FLYcasso" height="100">
 </p>
 
-Two recurrent models built from the full MaleCNS connectome: image diffusion and muscle-driven leg painting. Synaptic gains and neuron dynamics are trained; input and output interfaces are fixed.
+Stopped experiment: recurrent image diffusion and muscle-driven leg painting using the full MaleCNS connectome. Synaptic gains, neuron dynamics and small local interfaces are learned. Neither run passed its first curriculum gate. The working studio remains on `main`.
 
 | Brain Diffusion | Leg Painting |
 | --- | --- |
-| ![Circuit image architecture](docs/assets/circuit-image-architecture.svg) | ![Circuit muscle architecture](docs/assets/circuit-motor-architecture.svg) |
+| ![Circuit image architecture](docs/assets/calibrated-image-architecture.svg) | ![Circuit muscle architecture](docs/assets/calibrated-motor-architecture.svg) |
 
-The screenshots below show the previous models. The new circuits are being trained on this feature branch.
+The screenshots below show the previous models. Training on this feature branch was stopped on 2026-09-13; code and local checkpoints are retained for future work.
 
 | Brain Diffusion | Leg Painting |
 | --- | --- |
@@ -28,20 +28,16 @@ pip install -r requirements/paint.txt
 ## Train
 
 ```sh
-bash scripts/run_brain.sh        # download, prepare, train both tasks, evaluate, export
-bash scripts/run_brain.sh image  # image task only
-bash scripts/run_brain.sh motor  # muscle task only
+bash scripts/train_calibrated.sh # prepare both datasets, resume both curricula
 ```
 
-Jobs run sequentially and use the GPU when available. Rerun to resume. Training reduces the learning rate and stops on validation plateaus, with a default limit of 20,000 steps per task. To extend a run: `bash scripts/run_brain.sh image 40000`.
-
-Data: CIFAR-10 and Quick, Draw!. Checkpoints go in `runs/brain-image/` and `runs/brain-motor/`; portable weights and evaluations go in each run’s `inference/` directory. No pretrained release is available yet.
+The launcher alternates GPU slices and advances stages only after measured quality gates pass. Local checkpoints are retained in `runs/calibrated-image/` and `runs/calibrated-motor/`. No pretrained release is provided for this experiment.
 
 ## App
 
 ```sh
-python -m flycasso.app --checkpoint runs/brain-image/best.pt \
-  --motor-checkpoint runs/brain-motor/best.pt --follow-training
+python -m flycasso.app --checkpoint runs/calibrated-image/best.pt \
+  --motor-checkpoint runs/calibrated-motor/best.pt --follow-training
 ```
 
 Open http://localhost:7860 after both tasks have saved a checkpoint.

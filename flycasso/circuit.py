@@ -38,7 +38,7 @@ class EdgeMultiply(torch.autograd.Function):
 
 
 class Circuit(nn.Module):
-    def __init__(self, graph, ports, control="real", seed=42):
+    def __init__(self, graph, ports, control="real", seed=42, calibration=None):
         super().__init__()
         w, self.metadata = load_graph(graph, control, seed)
         n = w.size(0)
@@ -59,17 +59,28 @@ class Circuit(nn.Module):
             self.register_buffer(name, value, persistent=False)
         for name, value in ports.items():
             self.register_buffer(name, torch.from_numpy(np.asarray(value)), persistent=False)
-        self.edge_gain = nn.Parameter(torch.zeros(len(idx)))
-        self.bias = nn.Parameter(torch.zeros(n))
-        self.leak = nn.Parameter(torch.zeros(n))
+        self.calibrated = calibration is not None
+        if self.calibrated and control!='real':raise ValueError('Prepare matching cell-type groups before using a rewired control')
+        if self.calibrated:
+            with np.load(calibration, allow_pickle=False) as f:
+                edge, neuron = f['edge_group'], f['neuron_group']
+            for name, array, length in [('edge_group', edge, len(idx)), ('neuron_group', neuron, n)]:
+                if array.shape != (length,) or array.dtype.kind not in 'iu' or array.min() < 0 or array.max() >= length:
+                    raise ValueError('Invalid anatomical parameter groups')
+                self.register_buffer(name, torch.from_numpy(array.astype(np.int64)), persistent=False)
+        self.edge_gain = nn.Parameter(torch.zeros(int(edge.max())+1 if self.calibrated else len(idx)))
+        self.bias = nn.Parameter(torch.zeros(int(neuron.max())+1 if self.calibrated else n))
+        self.leak = nn.Parameter(torch.zeros(int(neuron.max())+1 if self.calibrated else n))
         self.n_neurons, self.n_edges = n, len(idx)
 
     def initial(self, batch):
         return self.bias.new_zeros((self.n_neurons, batch))
 
     def coefficients(self):
-        values=self.base*(2*self.edge_gain.sigmoid())
-        leak=.05+.9*self.leak.sigmoid()[:,None]
+        gain = self.edge_gain[self.edge_group] if self.calibrated else self.edge_gain
+        values=self.base*(gain.clamp(-3, 3).exp() if self.calibrated else 2*gain.sigmoid())
+        leak=self.leak[self.neuron_group] if self.calibrated else self.leak
+        leak=.05+.9*leak.sigmoid()[:,None]
         transposed=values.new_empty(0)
         if torch.is_grad_enabled():
             with torch.no_grad():transposed=values[self.order.long()]
@@ -83,9 +94,10 @@ class Circuit(nn.Module):
         # A neuron receives at most one external channel; unmapped neurons get zero.
         drive = signals[:, self.input_channel.clamp_min(0).long()].t() * self.input_scale[:, None]
         values,leak,transposed=self.coefficients() if coefficients is None else coefficients
+        bias = self.bias[self.neuron_group] if self.calibrated else self.bias
         for _ in range(ticks):
             recurrent = 0 if ablate else EdgeMultiply.apply(state, values, self.ptr, self.idx, self.rows, self.tptr, self.tidx, transposed)
-            state = state + leak * (torch.tanh(drive + self.bias[:, None] + recurrent) - state)
+            state = state + leak * (torch.tanh(drive + bias[:, None] + recurrent) - state)
         return state
 
     def read(self, state):

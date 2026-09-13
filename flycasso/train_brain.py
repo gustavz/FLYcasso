@@ -26,11 +26,12 @@ def load(path, device="auto", raw=False, graph=None):
         from flycasso.muscle import body_sources
         if c['body']!=body_sources():raise ValueError('Changed muscle body or initial pose')
     if graph is not None:c['graph']=str(Path(graph).resolve())
-    for name in ['graph','ports']+(['body_ports'] if 'body_ports' in c else []):
+    for name in ['graph','ports']+([k for k in ['body_ports','calibration'] if k in c]):
         local=Path(path).parent/Path(c[name]).name
         if not Path(c[name]).is_absolute() and local.exists():c[name]=str(local.resolve())
         if digest(c[name])!=state['hashes'][name]:raise ValueError(f'Changed {name}')
-    model=Brain(c['graph'],c['ports'],c['task'],c['ticks'],c['control']).to(device_for(device))
+    model=Brain(c['graph'],c['ports'],c['task'],c['ticks'],c['control'],c.get('calibration'),c.get('size',32)).to(device_for(device))
+    model.stage=c.get('stage',0)
     if c.get('classes',model.classes)!=model.classes:raise ValueError('Checkpoint categories do not match the task')
     model.load_state_dict(state['model'] if raw and not state.get('inference_only') else state['ema']);model.eval()
     state['checkpoint_sha256']=sha

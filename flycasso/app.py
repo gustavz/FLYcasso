@@ -129,7 +129,8 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             if self.path == "/":
                 return self.reply(200, page, "text/html; charset=utf-8")
             if self.path == "/api/info":
-                return self.reply(200, dict(info, classes=model.classes, diffusion_steps=diffusion.steps))
+                classes=[model.classes[i] for i in [0,1,6]] if getattr(model,'calibrated',False) and model.stage<2 else model.classes
+                return self.reply(200, dict(info, classes=classes, diffusion_steps=diffusion.steps))
             if self.path == "/api/training":
                 result = {}
                 for task in ("diffusion", "motor"):
@@ -156,9 +157,12 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
             if self.path == "/api/paint-info":
                 config_path = motor_path.parent / "config.json"
                 config = read_json(config_path) if config_path.exists() else {}
-                return self.reply(200, dict(classes=config.get("classes", ["cat","flower","butterfly"]),
+                classes=config.get('classes',['cat','flower','butterfly'])
+                if config.get('recipe')=='calibrated-v1' and config.get('stage',0)<7:
+                    classes=[classes[i] for i in ([0] if config.get('stage',0)<6 else [0,6,7])]
+                return self.reply(200, dict(classes=classes,
                     checkpoint_ready=motor_path.exists() and (config.get("phase")=="strokes" or config.get('task')=='motor'),
-                    muscle_driven=config.get('task')=='motor',description="Category-conditioned one-leg control"))
+                    stage_name=config.get("stage_name"),muscle_driven=config.get('task')=='motor',description="Category-conditioned one-leg control"))
             if self.path=='/assets/motor-scene.json':
                 config_path=motor_path.parent/'config.json'
                 if config_path.exists() and read_json(config_path).get('task')=='motor':
@@ -175,6 +179,8 @@ def make_server(model, diffusion, info, port=7860, allowed_host=None, follow_tra
                       "/sound.js": (root / "web/sound.js", "text/javascript"),
                       "/paint.js": (root / "web/paint.js", "text/javascript"),
                       "/brain.js": (root / "web/brain.js", "text/javascript"),
+                      "/assets/calibrated-image-architecture.svg": (root / "docs/assets/calibrated-image-architecture.svg", "image/svg+xml"),
+                      "/assets/calibrated-motor-architecture.svg": (root / "docs/assets/calibrated-motor-architecture.svg", "image/svg+xml"),
                       "/fly-body.js": (root / "web/fly-body.js", "text/javascript"),
                       "/training.js": (root / "web/training.js", "text/javascript")}
             for task in ("image", "motor"):

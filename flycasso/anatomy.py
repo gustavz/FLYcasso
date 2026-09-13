@@ -20,7 +20,7 @@ MUSCLE_TYPES = [
 ]
 
 
-def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/annotations.feather", out="data/processed/brain-ports-v2"):
+def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/annotations.feather", out="data/processed/brain-ports-v2", calibrated=False):
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     with np.load(graph) as data: ids = data["ids"]
     table = pd.read_feather(annotations).set_index("bodyId").reindex(ids)
@@ -42,12 +42,13 @@ def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/anno
     channels[cue] = 3072 + np.arange(len(cue))%16; scale[cue] = .5
     xx, yy = np.meshgrid(np.arange(32), np.arange(32)); grid = np.c_[xx.ravel(), yy.ravel()]
     outputs=[]
-    for cell in ["Tm1", "Tm2", "Tm9"]:
+    read_types=["Tm1", "Tm2", "Tm9", "C3", "Mi1", "T1", "Mi9", "Mi4", "Tm20"] if calibrated else ["Tm1", "Tm2", "Tm9"]
+    for cell in read_types:
         rows=np.flatnonzero(located & (table.type==cell))
         if not len(rows): raise ValueError(f"Missing column population {cell}")
         outputs.extend(rows[cKDTree(xy[rows]).query(grid,k=2)[1]])
     common=dict(input_channel=channels,input_scale=scale)
-    image=dict(common,output_index=np.asarray(outputs,np.int32),output_scale=np.full((3072,2),4.,np.float32))
+    image=dict(common,output_index=np.asarray(outputs,np.int32),output_scale=np.full((len(outputs),2),.5 if calibrated else 4.,np.float32))
     np.savez_compressed(out/"image.npz",**image)
     # Front-left proprioceptive afferents. Channel tuning is a declared engineering assumption.
     sensory=np.flatnonzero((table['class']=="mechanosensory_proprioceptive") & (table.rootSide=="L") & table.entryNerve.fillna('').str.contains('ProN|ProLN'))
@@ -68,12 +69,22 @@ def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/anno
     np.savez_compressed(out/"motor.npz",input_channel=channels,input_scale=scale,output_index=index,output_scale=weights)
     from flycasso.body import prepare as prepare_body
     prepare_body(graph,annotations,out/'body.npz')
+    if calibrated:
+        # Cell-type pairs share efficacy; no edges are dropped or invented.
+        types=table['type'].fillna(table['subclass']).fillna(table['superclass']).fillna('unknown').astype(str)
+        names,groups=np.unique(types,return_inverse=True)
+        with np.load(graph) as data:
+            rows=np.repeat(np.arange(len(ids)),np.diff(data['indptr']))
+            pairs=groups[rows].astype(np.int64)*len(names)+groups[data['indices']]
+        pairs,edge_group=np.unique(pairs,return_inverse=True)
+        np.savez_compressed(out/'calibration.npz',neuron_group=groups.astype(np.int32),
+            edge_group=edge_group.astype(np.int32),cell_types=names.astype(str),pairs=pairs)
     write_json(out/"manifest.json",dict(graph_sha256=digest(graph),annotations_sha256=digest(annotations),
-        files={p.name:digest(p) for p in out.glob('*.npz')},motor_pools=mapping,
+        readout_cell_types=read_types,calibrated=calibrated,files={p.name:digest(p) for p in out.glob('*.npz')},motor_pools=mapping,
         image_cue_body_ids=ids[cue].tolist(),motor_cue_body_ids=ids[motor_cue].tolist(),
         sensory_body_ids=ids[sensory].tolist(),
         limitations=["RGB assigned to L1/L2/L5 electrodes; not photoreceptor physiology",
-            "Cue electrodes are artificial CB inputs", "Front-leg afferent feature tuning is engineered",
+            "Cue electrodes are artificial task inputs", "Front-leg afferent feature tuning is engineered",
             "Motor mapping is by named muscle group; individual head innervation is unresolved",
             "MaleCNS neural anatomy and FlyMimic biomechanics come from different specimens"]))
     print(f"Prepared {len(ids)}-neuron interfaces; {len(sensory)} proprioceptive inputs",flush=True)
@@ -81,4 +92,5 @@ def prepare(graph="data/processed/malecns/graph.npz", annotations="data/raw/anno
 
 if __name__ == "__main__":
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',default='data/processed/brain-ports-v2')
-    prepare(out=p.parse_args().out)
+    p.add_argument('--calibrated',action='store_true');a=p.parse_args()
+    prepare(out=a.out,calibrated=a.calibrated)

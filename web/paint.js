@@ -203,7 +203,7 @@ async function load() {
   categories=info.classes;categories.forEach(name=>$('drawing').add(new Option(name[0].toUpperCase()+name.slice(1),name)));
   $('drawing').disabled=false;ready=info.checkpoint_ready;
   $('start-painting').disabled=!ready;$('start-painting').textContent=ready?'Draw sketch':'Waiting for trained weights…';
-  $('motor-state').textContent=ready?'Ready':'Checkpoint unavailable';status.textContent='';
+  $('motor-state').textContent=ready?'Ready':'Checkpoint unavailable';status.textContent=info.stage_name?`Training stage: ${info.stage_name}.`:'';
 }
 window.addEventListener('training-update',async()=>{
   if(ready||aborter)return;

@@ -6,6 +6,7 @@ Training/optimizer checkpoints stay in runs/ for exact resume.
 
 import argparse
 import shutil
+import numpy as np
 from pathlib import Path
 
 from flycasso.common import ROOT, digest, load_torch, read_json, save_torch, write_json
@@ -21,7 +22,7 @@ def export(checkpoint, output, graph=None):
                 print(f'Verified existing inference files at {output}');return
             raise ValueError('Export differs or is corrupt; choose a new export directory')
         if output.exists():raise ValueError('Choose a new export directory')
-        config=dict(state['config']);artifacts={k:Path(config[k]) for k in ['graph','ports']}
+        config=dict(state['config']);artifacts={k:Path(config[k]) for k in ['graph','ports']+(['calibration'] if 'calibration' in config else [])}
         for k,path in artifacts.items():
             if not path.is_absolute() and (Path(checkpoint).parent/path).exists():artifacts[k]=Path(checkpoint).parent/path
         for k,path in artifacts.items():
@@ -31,7 +32,8 @@ def export(checkpoint, output, graph=None):
             from flycasso.body import BodyReadout
             body_path=Path(config.get('body_ports',str(artifacts['ports'].parent/'body.npz')))
             if not body_path.is_absolute() and (Path(checkpoint).parent/body_path).exists():body_path=Path(checkpoint).parent/body_path
-            BodyReadout(body_path,hashes['graph'],len(state['ema']['core.bias']),'cpu')
+            with np.load(artifacts['graph']) as f:n_neurons=len(f['ids'])
+            BodyReadout(body_path,hashes['graph'],n_neurons,'cpu')
             artifacts['body_ports']=body_path;hashes['body_ports']=digest(body_path)
         output.mkdir(parents=True)
         for k,path in artifacts.items():
