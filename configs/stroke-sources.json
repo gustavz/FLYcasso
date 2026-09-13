@@ -1,0 +1,52 @@
+{
+  "cat": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/cat.ndjson?generation=1495085664863101",
+    "sha256": "2d04800efd91b83c14ebbf20acca50be3477e8b7d83305d9ae1d8b3ae54a29cf",
+    "bytes": 76676944
+  },
+  "flower": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/flower.ndjson?generation=1495085679601712",
+    "sha256": "a2859a3c540dabc803049753e201757bb0b9188a9ca3e9681d3d5c3c73180dcc",
+    "bytes": 83263255
+  },
+  "butterfly": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/butterfly.ndjson?generation=1495085658866337",
+    "sha256": "9acc883a95ab92d78500671e257b604bfc8808e49508e5f5e7d3c87ea6f4e8ea",
+    "bytes": 66339543
+  },
+  "fish": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/fish.ndjson?generation=1495085671933258",
+    "sha256": "2fb9fbb12ba25285b0944e91e94e07b3e9f63bc53049bd30da857c6a59d1441b",
+    "bytes": 50947886
+  },
+  "bird": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/bird.ndjson?generation=1495085653394812",
+    "sha256": "646999c98407197d2a37814e5a90dea31d2ea444590d5558b24b1060b9d5bdb2",
+    "bytes": 69057809
+  },
+  "tree": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/tree.ndjson?generation=1495085705220121",
+    "sha256": "127387f078d5f170f9b0129ac07953dcf0442e2251741e14dca892efc26ddd7c",
+    "bytes": 80477220
+  },
+  "house": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/house.ndjson?generation=1495085680761602",
+    "sha256": "407fdb1c5e101177e38c636789705b8800dd3d01f747412d6b78ccf3e10d86bb",
+    "bytes": 48248751
+  },
+  "star": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/star.ndjson?generation=1495085697740738",
+    "sha256": "7a975fcf854805854b0d16b675250323e24aadb06a75cdb62f33416b039ab905",
+    "bytes": 44981697
+  },
+  "apple": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/apple.ndjson?generation=1495085641059054",
+    "sha256": "d135667abdf7e030b34d8c2b383b57ea2ea6f4a99448f267c0e979a474f2990d",
+    "bytes": 58819094
+  },
+  "umbrella": {
+    "url": "https://storage.googleapis.com/quickdraw_dataset/full/simplified/umbrella.ndjson?generation=1495085702052886",
+    "sha256": "7b3eb1eab9e2717ba523a31aa7cd91bb5ba76d4fd5b1760a58985e9464523b1f",
+    "bytes": 49165656
+  }
+}

@@ -1,0 +1,3 @@
+# Keep vendored upstream files byte-for-byte (hashes in web/assets/sources.json).
+web/assets/three*.js -whitespace
+web/assets/OrbitControls.js -whitespace
