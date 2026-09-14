@@ -3,7 +3,7 @@
   <img src="web/assets/flycasso-wordmark.png" alt="FLYcasso" height="100">
 </p>
 
-https://github.com/user-attachments/assets/bf8b890b-1dcc-4cfe-9007-10d22dba9736
+https://github.com/user-attachments/assets/0fde5321-3158-45c2-a048-d504e21aedbc
 
 Two models built around the full MaleCNS fly connectome: image diffusion and one-leg drawing. Both take a category as input. Diffusion learns CIFAR-10 color images; drawing learns Quick, Draw! strokes.
 
